@@ -1,0 +1,52 @@
+# 编译输出目录
+target/
+build/
+out/
+dist/
+node_modules/
+
+# IDE文件
+.idea/
+*.iml
+.vscode/
+*.sublime-*
+.project
+.classpath
+.settings/
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*~
+
+# 数据目录
+docker/mysql/data/
+docker/redis/data/
+
+# 环境配置
+.env.local
+.env.*.local
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 依赖锁定文件
+package-lock.json
+yarn.lock
+pom.xml.versionsBackup
+
+# 测试报告
+coverage/
+
+# 前端构建文件
+skyii-web/dist/
+skyii-web/node_modules/
+
+# 后端构建文件
+skyii-server/target/ 

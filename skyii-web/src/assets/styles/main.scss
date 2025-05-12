@@ -1,0 +1,117 @@
+/* 全局样式 */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  color: #303133;
+  background-color: #f5f7fa;
+}
+
+html, body, #app {
+  height: 100%;
+}
+
+/* 清除浮动 */
+.clearfix:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* 文本溢出省略号 */
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 常用边距 */
+.m-0 { margin: 0 !important; }
+.p-0 { padding: 0 !important; }
+.mt-10 { margin-top: 10px !important; }
+.mb-10 { margin-bottom: 10px !important; }
+.ml-10 { margin-left: 10px !important; }
+.mr-10 { margin-right: 10px !important; }
+.pt-10 { padding-top: 10px !important; }
+.pb-10 { padding-bottom: 10px !important; }
+.pl-10 { padding-left: 10px !important; }
+.pr-10 { padding-right: 10px !important; }
+.mt-20 { margin-top: 20px !important; }
+.mb-20 { margin-bottom: 20px !important; }
+
+/* 页面容器 */
+.page-container {
+  padding: 20px;
+}
+
+/* 卡片样式 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 表格工具栏 */
+.table-toolbar {
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 分页容器 */
+.pagination-container {
+  margin-top: 20px;
+  text-align: right;
+}
+
+/* 表单样式 */
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* 详情页样式 */
+.detail-label {
+  font-weight: bold;
+  color: #606266;
+}
+
+.detail-value {
+  color: #303133;
+}
+
+.detail-item {
+  margin-bottom: 15px;
+}
+
+/* 响应式布局辅助 */
+@media (max-width: 768px) {
+  .hidden-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .hidden-md {
+    display: none !important;
+  }
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #909399;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #f5f7fa;
+} 

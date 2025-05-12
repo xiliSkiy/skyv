@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能监控系统 - 数据分析</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --topbar-height: 60px;
+            --primary-color: #1e3c72;
+            --secondary-color: #2a5298;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            background-color: #f5f7fb;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 1000;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            color: white;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            min-height: 100vh;
+            transition: all 0.3s;
+        }
+        
+        .topbar {
+            height: var(--topbar-height);
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: var(--sidebar-width);
+            z-index: 999;
+            transition: all 0.3s;
+        }
+        
+        .content-area {
+            margin-top: calc(var(--topbar-height) + 20px);
+            padding-bottom: 20px;
+        }
+        
+        .logo {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 20px;
+            font-weight: bold;
+            height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+        }
+        
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        
+        .menu-item:hover, .menu-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left: 4px solid white;
+        }
+        
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .chart-placeholder {
+            width: 100%;
+            height: 300px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航栏 -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-shield-alt me-2"></i> SkyEye 智能监控
+        </div>
+        <div class="menu-items mt-4">
+            <a href="dashboard.html" class="menu-item">
+                <i class="fas fa-tachometer-alt"></i> 控制台
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-video"></i> 监控管理
+            </a>
+            <a href="alerts.html" class="menu-item">
+                <i class="fas fa-bell"></i> 报警中心
+            </a>
+            <a href="analytics.html" class="menu-item active">
+                <i class="fas fa-chart-line"></i> 数据分析
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-cog"></i> 设备管理
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-user-shield"></i> 用户管理
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-history"></i> 历史记录
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-sliders-h"></i> 系统设置
+            </a>
+        </div>
+    </div>
+
+    <!-- 顶部导航栏 -->
+    <div class="topbar">
+        <button type="button" class="btn btn-sm d-md-none" id="sidebarCollapse">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <div class="d-flex align-items-center ms-auto">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="搜索...">
+            </div>
+            
+            <button type="button" class="icon-btn">
+                <i class="far fa-bell"></i>
+                <span class="badge-circle">5</span>
+            </button>
+            
+            <div class="topbar-divider"></div>
+            
+            <div class="dropdown">
+                <div class="user-profile" id="dropdownMenuButton" data-bs-toggle="dropdown">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-info me-2">
+                        <div class="user-name">管理员</div>
+                        <div class="user-role">系统管理员</div>
+                    </div>
+                    <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-user-circle me-2"></i> 个人信息</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> 账号设置</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i> 退出登录</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <div class="content-area">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>数据分析</h4>
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm me-2"><i class="fas fa-file-export me-1"></i> 导出报表</button>
+                    <button class="btn btn-primary btn-sm"><i class="fas fa-sync-alt me-1"></i> 刷新数据</button>
+                </div>
+            </div>
+            
+            <!-- 时间范围选择和筛选条件 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <label class="form-label">时间范围</label>
+                            <select class="form-select">
+                                <option>今天</option>
+                                <option>昨天</option>
+                                <option selected>最近7天</option>
+                                <option>最近30天</option>
+                                <option>本月</option>
+                                <option>上月</option>
+                                <option>自定义...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <label class="form-label">设备组</label>
+                            <select class="form-select">
+                                <option selected>所有设备</option>
+                                <option>入口监控组</option>
+                                <option>办公区监控组</option>
+                                <option>仓库监控组</option>
+                                <option>停车场监控组</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">分析类型</label>
+                            <select class="form-select">
+                                <option selected>全部</option>
+                                <option>人员检测</option>
+                                <option>行为分析</option>
+                                <option>事件统计</option>
+                                <option>报警分析</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="row mb-4">
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">总人流量</h6>
+                                <h3 class="mb-0">8,547</h3>
+                                <small class="text-success">+12.5% <i class="fas fa-arrow-up"></i></small>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded text-primary">
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">报警事件</h6>
+                                <h3 class="mb-0">156</h3>
+                                <small class="text-danger">+8.3% <i class="fas fa-arrow-up"></i></small>
+                            </div>
+                            <div class="bg-danger bg-opacity-10 p-3 rounded text-danger">
+                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">平均停留时间</h6>
+                                <h3 class="mb-0">24.5<small>分钟</small></h3>
+                                <small class="text-success">-2.1% <i class="fas fa-arrow-down"></i></small>
+                            </div>
+                            <div class="bg-info bg-opacity-10 p-3 rounded text-info">
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6 mb-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-2">设备健康率</h6>
+                                <h3 class="mb-0">96.8<small>%</small></h3>
+                                <small class="text-success">+1.2% <i class="fas fa-arrow-up"></i></small>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded text-success">
+                                <i class="fas fa-heartbeat fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表行 1 -->
+            <div class="row mb-4">
+                <div class="col-lg-8">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0">人流量趋势分析</h5>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary">日</button>
+                                <button class="btn btn-sm btn-outline-secondary active">周</button>
+                                <button class="btn btn-sm btn-outline-secondary">月</button>
+                            </div>
+                        </div>
+                        <div class="chart-placeholder">
+                            <img src="https://via.placeholder.com/800x300/f8f9fa/777777?text=人流量趋势折线图" alt="人流量趋势图" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0">人员类型分布</h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="dropdownMenuButton" data-bs-toggle="dropdown">
+                                    最近7天
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                    <li><a class="dropdown-item" href="#">今天</a></li>
+                                    <li><a class="dropdown-item" href="#">昨天</a></li>
+                                    <li><a class="dropdown-item active" href="#">最近7天</a></li>
+                                    <li><a class="dropdown-item" href="#">最近30天</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="chart-placeholder">
+                            <img src="https://via.placeholder.com/400x300/f8f9fa/777777?text=人员类型饼图" alt="人员类型饼图" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表行 2 -->
+            <div class="row mb-4">
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0">报警类型分布</h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="alarmTypeDropdown" data-bs-toggle="dropdown">
+                                    最近7天
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="alarmTypeDropdown">
+                                    <li><a class="dropdown-item" href="#">今天</a></li>
+                                    <li><a class="dropdown-item" href="#">昨天</a></li>
+                                    <li><a class="dropdown-item active" href="#">最近7天</a></li>
+                                    <li><a class="dropdown-item" href="#">最近30天</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="chart-placeholder">
+                            <img src="https://via.placeholder.com/600x300/f8f9fa/777777?text=报警类型饼图" alt="报警类型图" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0">设备性能分析</h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="devicePerformanceDropdown" data-bs-toggle="dropdown">
+                                    最近7天
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="devicePerformanceDropdown">
+                                    <li><a class="dropdown-item" href="#">今天</a></li>
+                                    <li><a class="dropdown-item" href="#">昨天</a></li>
+                                    <li><a class="dropdown-item active" href="#">最近7天</a></li>
+                                    <li><a class="dropdown-item" href="#">最近30天</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="chart-placeholder">
+                            <img src="https://via.placeholder.com/600x300/f8f9fa/777777?text=设备性能柱状图" alt="设备性能图" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表行 3 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="mb-0">热力图分析</h5>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="heatmapDropdown" data-bs-toggle="dropdown">
+                                    一楼大厅
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="heatmapDropdown">
+                                    <li><a class="dropdown-item active" href="#">一楼大厅</a></li>
+                                    <li><a class="dropdown-item" href="#">二楼办公区</a></li>
+                                    <li><a class="dropdown-item" href="#">仓库区域</a></li>
+                                    <li><a class="dropdown-item" href="#">停车场</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="chart-placeholder" style="height: 400px;">
+                            <img src="https://via.placeholder.com/1200x400/f8f9fa/777777?text=热力图分析" alt="热力图" style="max-width: 100%; height: auto;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 数据表格 -->
+            <div class="chart-container mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0">数据明细</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-filter me-1"></i> 筛选</button>
+                        <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-download me-1"></i> 导出</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>设备名称</th>
+                                <th>位置</th>
+                                <th>人流量</th>
+                                <th>警报次数</th>
+                                <th>峰值时间</th>
+                                <th>设备状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>前门监控</td>
+                                <td>一楼大厅</td>
+                                <td>2,453</td>
+                                <td>12</td>
+                                <td>08:30 - 09:30</td>
+                                <td><span class="badge bg-success">正常</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">查看</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>后门监控</td>
+                                <td>后门通道</td>
+                                <td>1,248</td>
+                                <td>8</td>
+                                <td>12:00 - 13:00</td>
+                                <td><span class="badge bg-success">正常</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">查看</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>办公区监控</td>
+                                <td>二楼办公区</td>
+                                <td>3,125</td>
+                                <td>5</td>
+                                <td>09:00 - 10:00</td>
+                                <td><span class="badge bg-success">正常</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">查看</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>停车场监控</td>
+                                <td>地下停车场</td>
+                                <td>1,721</td>
+                                <td>15</td>
+                                <td>18:00 - 19:00</td>
+                                <td><span class="badge bg-warning text-dark">信号弱</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">查看</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>仓库监控</td>
+                                <td>仓库区域</td>
+                                <td>876</td>
+                                <td>2</td>
+                                <td>14:00 - 15:00</td>
+                                <td><span class="badge bg-success">正常</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">查看</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination justify-content-end">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1">上一页</a>
+                        </li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#">下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
