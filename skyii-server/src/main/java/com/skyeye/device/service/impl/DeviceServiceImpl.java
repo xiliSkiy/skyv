@@ -82,7 +82,7 @@ public class DeviceServiceImpl implements DeviceService {
         
         // 执行软删除
         device.setDeletedAt(LocalDateTime.now());
-        deviceRepository.save(device);
+        deviceRepository.delete(device);
     }
 
     @Override

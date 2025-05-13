@@ -53,10 +53,16 @@ const routes = [
         meta: { title: '添加设备', requiresAuth: true, activeMenu: '/device' }
       },
       {
-        path: 'device/:id',
+        path: 'device/detail/:id',
         name: 'DeviceDetail',
         component: () => import('@/views/device/DeviceDetail.vue'),
         meta: { title: '设备详情', requiresAuth: true, activeMenu: '/device' }
+      },
+      {
+        path: 'device/edit/:id',
+        name: 'DeviceEdit',
+        component: () => import('@/views/device/DeviceAdd.vue'),
+        meta: { title: '编辑设备', requiresAuth: true, activeMenu: '/device', isEdit: true }
       },
       {
         path: 'monitoring',

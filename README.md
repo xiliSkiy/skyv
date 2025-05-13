@@ -74,3 +74,6 @@ npm run dev
 ## 开发指南
 
 详细开发文档请参考 [开发指南](docs/development-guide.md)。 
+
+## 项目编译
+mvn clean package -DskipTests
