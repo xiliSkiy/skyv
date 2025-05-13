@@ -14,24 +14,24 @@ import javax.persistence.Table;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "roles")
+@Table(name = "tb_roles")
 public class Role extends BaseEntity {
 
     /**
      * 角色名称
      */
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(name = "role_name", nullable = false, length = 50)
     private String name;
 
     /**
      * 角色编码
      */
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(name = "role_code", nullable = false, unique = true, length = 50)
     private String code;
 
     /**
      * 角色描述
      */
-    @Column(length = 200)
+    @Column(name = "description", length = 255)
     private String description;
 } 

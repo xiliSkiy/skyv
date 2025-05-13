@@ -14,13 +14,13 @@ import javax.persistence.Table;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "device_groups")
+@Table(name = "tb_device_groups")
 public class DeviceGroup extends BaseEntity {
 
     /**
      * 分组名称
      */
-    @Column(nullable = false, length = 100)
+    @Column(name = "group_name", nullable = false, length = 50)
     private String name;
 
     /**
@@ -38,7 +38,7 @@ public class DeviceGroup extends BaseEntity {
     /**
      * 分组描述
      */
-    @Column(length = 500)
+    @Column(name = "description", length = 255)
     private String description;
 
     /**

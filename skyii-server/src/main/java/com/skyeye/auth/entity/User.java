@@ -14,49 +14,49 @@ import java.util.Set;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "users")
+@Table(name = "tb_users")
 public class User extends BaseEntity {
 
     /**
      * 用户名
      */
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
     /**
      * 密码
      */
-    @Column(nullable = false)
+    @Column(name = "password", nullable = false, length = 100)
     private String password;
 
     /**
      * 姓名
      */
-    @Column(length = 50)
+    @Column(name = "name", length = 50)
     private String name;
 
     /**
      * 邮箱
      */
-    @Column(unique = true, length = 100)
+    @Column(name = "email", length = 100)
     private String email;
 
     /**
      * 手机号
      */
-    @Column(length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
     /**
      * 头像
      */
-    @Column(length = 200)
+    @Column(name = "avatar", length = 255)
     private String avatar;
 
     /**
      * 账号状态（0-禁用，1-启用）
      */
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private Integer status = 1;
 
     /**
@@ -70,7 +70,7 @@ public class User extends BaseEntity {
      */
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-        name = "user_roles",
+        name = "tb_user_roles",
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "role_id")
     )

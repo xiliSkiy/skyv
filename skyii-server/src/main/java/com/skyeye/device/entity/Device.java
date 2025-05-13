@@ -14,67 +14,67 @@ import javax.persistence.Table;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "devices")
+@Table(name = "tb_devices")
 public class Device extends BaseEntity {
 
     /**
      * 设备名称
      */
-    @Column(nullable = false, length = 100)
+    @Column(name = "device_name", nullable = false, length = 100)
     private String name;
 
     /**
      * 设备编码
      */
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(name = "device_code", nullable = false, unique = true, length = 50)
     private String code;
 
     /**
      * 设备类型
      */
-    @Column(nullable = false, length = 50)
+    @Column(name = "device_type", nullable = false, length = 50)
     private String type;
 
     /**
      * 设备IP地址
      */
-    @Column(length = 50)
+    @Column(name = "ip_address", length = 50)
     private String ipAddress;
 
     /**
      * 设备端口
      */
-    @Column
+    @Column(name = "port")
     private Integer port;
 
     /**
      * 设备用户名
      */
-    @Column(length = 50)
+    @Column(name = "username", length = 50)
     private String username;
 
     /**
      * 设备密码
      */
-    @Column(length = 100)
+    @Column(name = "password", length = 100)
     private String password;
 
     /**
      * 设备状态（0-离线，1-在线，2-故障）
      */
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private Integer status = 0;
 
     /**
      * 设备位置
      */
-    @Column(length = 200)
+    @Column(name = "location", length = 255)
     private String location;
 
     /**
      * 设备描述
      */
-    @Column(length = 500)
+    @Column(name = "description", length = 255)
     private String description;
 
     /**
@@ -82,6 +82,12 @@ public class Device extends BaseEntity {
      */
     @Column(name = "group_id")
     private Long groupId;
+
+    /**
+     * RTSP地址
+     */
+    @Column(name = "rtsp_url", length = 255)
+    private String rtspUrl;
 
     /**
      * 最后心跳时间
