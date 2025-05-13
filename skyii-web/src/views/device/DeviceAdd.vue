@@ -115,7 +115,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createDevice, getDeviceDetail, updateDevice } from '@/api/device'
@@ -249,6 +249,29 @@ const submitForm = async () => {
   }
 }
 
+// 重置表单数据
+const resetForm = () => {
+  deviceForm.name = ''
+  deviceForm.code = ''
+  deviceForm.type = ''
+  deviceForm.location = ''
+  deviceForm.description = ''
+  deviceForm.ipAddress = ''
+  deviceForm.port = 554
+  deviceForm.username = ''
+  deviceForm.password = ''
+  deviceForm.groupId = 1
+  deviceForm.status = 0
+  
+  // 重置步骤
+  activeStep.value = 0
+  
+  // 重置表单校验
+  if (basicFormRef.value) basicFormRef.value.resetFields()
+  if (networkFormRef.value) networkFormRef.value.resetFields()
+  if (advancedFormRef.value) advancedFormRef.value.resetFields()
+}
+
 // 获取设备详情
 const getDevice = async (id) => {
   loading.value = true
@@ -266,10 +289,25 @@ const getDevice = async (id) => {
 }
 
 // 初始化
-onMounted(() => {
+const initForm = () => {
   if (isEdit.value && route.params.id) {
     getDevice(route.params.id)
+  } else {
+    resetForm()
   }
+}
+
+// 监听路由变化
+watch(
+  () => route.path,
+  () => {
+    initForm()
+  }
+)
+
+// 组件挂载时初始化
+onMounted(() => {
+  initForm()
 })
 </script>
 
