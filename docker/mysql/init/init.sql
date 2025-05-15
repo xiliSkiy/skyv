@@ -230,6 +230,106 @@ CREATE TABLE IF NOT EXISTS tb_system_logs (
     KEY idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统日志表';
 
+-- 任务草稿表
+CREATE TABLE IF NOT EXISTS tb_task_drafts (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    draft_id VARCHAR(50) NOT NULL COMMENT '草稿ID',
+    draft_data TEXT COMMENT '草稿数据（JSON格式）',
+    step INT DEFAULT 0 COMMENT '当前步骤：0-基本信息，1-设备选择，2-指标配置，3-调度设置',
+    created_by BIGINT COMMENT '创建人ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间',
+    UNIQUE KEY uk_draft_id (draft_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务草稿表';
+
+-- 任务设备关联表
+CREATE TABLE IF NOT EXISTS tb_task_devices (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    task_id BIGINT NOT NULL COMMENT '任务ID',
+    device_id BIGINT NOT NULL COMMENT '设备ID',
+    device_name VARCHAR(100) COMMENT '设备名称',
+    device_type VARCHAR(50) COMMENT '设备类型',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_task_id (task_id),
+    KEY idx_device_id (device_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务设备关联表';
+
+-- 任务指标表
+CREATE TABLE IF NOT EXISTS tb_task_metrics (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    task_id BIGINT NOT NULL COMMENT '任务ID',
+    metric_name VARCHAR(100) NOT NULL COMMENT '指标名称',
+    metric_type VARCHAR(50) NOT NULL COMMENT '指标类型',
+    metric_params TEXT COMMENT '指标参数（JSON格式）',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_task_id (task_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务指标表';
+
+-- 指标模板表
+CREATE TABLE IF NOT EXISTS tb_metric_templates (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    template_name VARCHAR(100) NOT NULL COMMENT '模板名称',
+    category VARCHAR(50) COMMENT '分类',
+    metric_type VARCHAR(50) NOT NULL COMMENT '指标类型',
+    device_type VARCHAR(50) COMMENT '适用设备类型',
+    default_params TEXT COMMENT '默认参数（JSON格式）',
+    description VARCHAR(255) COMMENT '描述',
+    is_system TINYINT DEFAULT 0 COMMENT '是否系统内置：0-否，1-是',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标模板表';
+
+-- 任务调度表
+CREATE TABLE IF NOT EXISTS tb_task_schedules (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    task_id BIGINT NOT NULL COMMENT '任务ID',
+    schedule_type VARCHAR(50) NOT NULL COMMENT '调度类型：realtime-实时执行，scheduled-定时执行，periodic-周期执行，triggered-触发执行',
+    cron_expression VARCHAR(100) COMMENT 'Cron表达式',
+    start_time DATETIME COMMENT '开始时间',
+    end_time DATETIME COMMENT '结束时间',
+    interval_value INT COMMENT '间隔值',
+    interval_unit VARCHAR(20) COMMENT '间隔单位：minutes-分钟，hours-小时，days-天',
+    trigger_type VARCHAR(50) COMMENT '触发类型：event-事件触发，threshold-阈值触发，api-API调用触发',
+    trigger_event VARCHAR(100) COMMENT '触发事件',
+    max_executions INT DEFAULT 0 COMMENT '最大执行次数，0表示不限制',
+    timeout_minutes INT DEFAULT 0 COMMENT '超时时间（分钟），0表示不限制',
+    retry_strategy VARCHAR(50) DEFAULT 'none' COMMENT '重试策略：none-不重试，immediate-立即重试，interval-间隔重试',
+    max_retries INT DEFAULT 0 COMMENT '最大重试次数',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_task_id (task_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务调度表';
+
+-- 任务执行表
+CREATE TABLE IF NOT EXISTS tb_task_executions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    execution_id VARCHAR(50) COMMENT '执行ID',
+    task_id BIGINT NOT NULL COMMENT '任务ID',
+    start_time DATETIME COMMENT '开始时间',
+    end_time DATETIME COMMENT '结束时间',
+    execution_time BIGINT COMMENT '执行时长(ms)',
+    status INT DEFAULT 1 COMMENT '执行状态：1-运行中，2-已调度，3-已暂停，4-已完成，5-执行失败',
+    result TEXT COMMENT '结果信息',
+    error_message TEXT COMMENT '错误信息',
+    execution_count INT DEFAULT 1 COMMENT '执行次数（重试次数+1）',
+    device_count INT DEFAULT 0 COMMENT '执行设备数量',
+    success_count INT DEFAULT 0 COMMENT '成功设备数量',
+    failed_count INT DEFAULT 0 COMMENT '失败设备数量',
+    created_by BIGINT COMMENT '创建人ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间',
+    UNIQUE KEY uk_execution_id (execution_id),
+    KEY idx_task_id (task_id),
+    KEY idx_status (status),
+    KEY idx_start_time (start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务执行表';
+
 -- 初始化数据
 
 -- 初始化角色

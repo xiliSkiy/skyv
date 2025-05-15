@@ -1,0 +1,768 @@
+package com.skyeye.scheduler.service.impl;
+
+import com.skyeye.device.entity.Device;
+import com.skyeye.device.service.DeviceService;
+import com.skyeye.scheduler.dto.*;
+import com.skyeye.scheduler.entity.*;
+import com.skyeye.scheduler.repository.*;
+import com.skyeye.scheduler.service.TaskService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import javax.persistence.criteria.Predicate;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * 任务服务实现类
+ */
+@Service
+@RequiredArgsConstructor
+public class TaskServiceImpl implements TaskService {
+
+    private final TaskRepository taskRepository;
+    private final TaskDeviceRepository taskDeviceRepository;
+    private final TaskMetricRepository taskMetricRepository;
+    private final TaskScheduleRepository taskScheduleRepository;
+    private final TaskExecutionRepository taskExecutionRepository;
+    private final MetricTemplateRepository metricTemplateRepository;
+    private final TaskDraftRepository taskDraftRepository;
+    private final DeviceService deviceService;
+
+    @Override
+    public Page<TaskDTO> findTasksByPage(TaskQueryDTO queryDTO) {
+        // 构建分页参数
+        Pageable pageable;
+        if (StringUtils.hasText(queryDTO.getSortBy())) {
+            Sort.Direction direction = "asc".equalsIgnoreCase(queryDTO.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            pageable = PageRequest.of(queryDTO.getPageNum() - 1, queryDTO.getPageSize(), Sort.by(direction, queryDTO.getSortBy()));
+        } else {
+            pageable = PageRequest.of(queryDTO.getPageNum() - 1, queryDTO.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+
+        // 构建查询条件
+        Specification<Task> specification = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            // 任务类型
+            if (StringUtils.hasText(queryDTO.getTaskType())) {
+                predicates.add(criteriaBuilder.equal(root.get("taskType"), queryDTO.getTaskType()));
+            }
+            
+            // 任务状态
+            if (StringUtils.hasText(queryDTO.getStatus())) {
+                Integer statusCode = convertStatusToCode(queryDTO.getStatus());
+                if (statusCode != null) {
+                    predicates.add(criteriaBuilder.equal(root.get("status"), statusCode));
+                }
+            }
+            
+            // 优先级
+            if (StringUtils.hasText(queryDTO.getPriority())) {
+                Integer priorityCode = convertPriorityToCode(queryDTO.getPriority());
+                if (priorityCode != null) {
+                    predicates.add(criteriaBuilder.equal(root.get("priority"), priorityCode));
+                }
+            }
+            
+            // 标签
+            if (StringUtils.hasText(queryDTO.getTag())) {
+                predicates.add(criteriaBuilder.like(root.get("tags"), "%" + queryDTO.getTag() + "%"));
+            }
+            
+            // 关键字（任务名称/ID/负责人）
+            if (StringUtils.hasText(queryDTO.getKeyword())) {
+                String keyword = "%" + queryDTO.getKeyword() + "%";
+                predicates.add(
+                    criteriaBuilder.or(
+                        criteriaBuilder.like(root.get("taskName"), keyword),
+                        criteriaBuilder.like(root.get("id").as(String.class), keyword)
+                    )
+                );
+            }
+            
+            // 创建时间范围
+            if (StringUtils.hasText(queryDTO.getStartDate())) {
+                LocalDateTime startDateTime = LocalDate.parse(queryDTO.getStartDate()).atStartOfDay();
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), startDateTime));
+            }
+            
+            if (StringUtils.hasText(queryDTO.getEndDate())) {
+                LocalDateTime endDateTime = LocalDate.parse(queryDTO.getEndDate()).atTime(LocalTime.MAX);
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), endDateTime));
+            }
+            
+            // 只查询未删除的记录
+            predicates.add(criteriaBuilder.isNull(root.get("deletedAt")));
+            
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 执行查询
+        Page<Task> taskPage = taskRepository.findAll(specification, pageable);
+        
+        // 转换为DTO
+        return taskPage.map(this::convertToTaskDTO);
+    }
+
+    @Override
+    public TaskDTO findTaskById(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        return convertToTaskDTO(task);
+    }
+
+    @Override
+    @Transactional
+    public TaskDTO createTask(TaskCreateDTO createDTO) {
+        // 创建任务实体
+        Task task = new Task();
+        task.setTaskName(createDTO.getTaskName());
+        task.setTaskType(createDTO.getTaskType());
+        task.setDescription(createDTO.getDescription());
+        task.setPriority(convertPriorityToCode(createDTO.getPriority()));
+        
+        // 处理标签
+        if (createDTO.getTags() != null && !createDTO.getTags().isEmpty()) {
+            task.setTags(String.join(",", createDTO.getTags()));
+        }
+        
+        // 设置默认状态为已调度
+        task.setStatus(2); // 2-已调度
+        
+        // 保存任务
+        final Task savedTask = taskRepository.save(task);
+        
+        // 保存任务设备关联
+        if (createDTO.getDevices() != null && !createDTO.getDevices().isEmpty()) {
+            List<TaskDevice> taskDevices = createDTO.getDevices().stream()
+                    .map(deviceDTO -> {
+                        TaskDevice taskDevice = new TaskDevice();
+                        taskDevice.setTaskId(savedTask.getId());
+                        taskDevice.setDeviceId(deviceDTO.getDeviceId());
+                        taskDevice.setDeviceName(deviceDTO.getDeviceName());
+                        taskDevice.setDeviceType(deviceDTO.getDeviceType());
+                        return taskDevice;
+                    })
+                    .collect(Collectors.toList());
+            
+            taskDeviceRepository.saveAll(taskDevices);
+        }
+        
+        // 保存任务指标关联
+        if (createDTO.getMetrics() != null && !createDTO.getMetrics().isEmpty()) {
+            List<TaskMetric> taskMetrics = createDTO.getMetrics().stream()
+                    .map(metricDTO -> {
+                        TaskMetric taskMetric = new TaskMetric();
+                        taskMetric.setTaskId(savedTask.getId());
+                        taskMetric.setMetricName(metricDTO.getMetricName());
+                        taskMetric.setMetricType(metricDTO.getMetricType());
+                        taskMetric.setMetricParams(metricDTO.getMetricParams());
+                        taskMetric.setSortOrder(metricDTO.getSortOrder());
+                        return taskMetric;
+                    })
+                    .collect(Collectors.toList());
+            
+            taskMetricRepository.saveAll(taskMetrics);
+        }
+        
+        // 保存任务调度信息
+        if (createDTO.getSchedule() != null) {
+            TaskSchedule taskSchedule = new TaskSchedule();
+            taskSchedule.setTaskId(savedTask.getId());
+            taskSchedule.setScheduleType(createDTO.getSchedule().getScheduleType());
+            taskSchedule.setCronExpression(createDTO.getSchedule().getCronExpression());
+            taskSchedule.setStartTime(createDTO.getSchedule().getStartTime());
+            taskSchedule.setEndTime(createDTO.getSchedule().getEndTime());
+            taskSchedule.setIntervalValue(createDTO.getSchedule().getIntervalValue());
+            taskSchedule.setIntervalUnit(createDTO.getSchedule().getIntervalUnit());
+            taskSchedule.setTriggerType(createDTO.getSchedule().getTriggerType());
+            taskSchedule.setTriggerEvent(createDTO.getSchedule().getTriggerEvent());
+            taskSchedule.setMaxExecutions(createDTO.getSchedule().getMaxExecutions());
+            taskSchedule.setTimeoutMinutes(createDTO.getSchedule().getTimeoutMinutes());
+            taskSchedule.setRetryStrategy(createDTO.getSchedule().getRetryStrategy());
+            taskSchedule.setMaxRetries(createDTO.getSchedule().getMaxRetries());
+            
+            taskScheduleRepository.save(taskSchedule);
+        }
+        
+        return findTaskById(savedTask.getId());
+    }
+
+    @Override
+    @Transactional
+    public TaskDTO updateTask(Long id, TaskCreateDTO createDTO) {
+        // 查询任务
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 更新任务基本信息
+        task.setTaskName(createDTO.getTaskName());
+        task.setTaskType(createDTO.getTaskType());
+        task.setDescription(createDTO.getDescription());
+        task.setPriority(convertPriorityToCode(createDTO.getPriority()));
+        
+        // 处理标签
+        if (createDTO.getTags() != null && !createDTO.getTags().isEmpty()) {
+            task.setTags(String.join(",", createDTO.getTags()));
+        } else {
+            task.setTags(null);
+        }
+        
+        // 保存任务
+        final Task savedTask = taskRepository.save(task);
+        
+        // 更新任务设备关联
+        if (createDTO.getDevices() != null) {
+            // 删除原有关联
+            taskDeviceRepository.deleteByTaskId(id);
+            
+            // 保存新关联
+            if (!createDTO.getDevices().isEmpty()) {
+                List<TaskDevice> taskDevices = createDTO.getDevices().stream()
+                        .map(deviceDTO -> {
+                            TaskDevice taskDevice = new TaskDevice();
+                            taskDevice.setTaskId(savedTask.getId());
+                            taskDevice.setDeviceId(deviceDTO.getDeviceId());
+                            taskDevice.setDeviceName(deviceDTO.getDeviceName());
+                            taskDevice.setDeviceType(deviceDTO.getDeviceType());
+                            return taskDevice;
+                        })
+                        .collect(Collectors.toList());
+                
+                taskDeviceRepository.saveAll(taskDevices);
+            }
+        }
+        
+        // 更新任务指标关联
+        if (createDTO.getMetrics() != null) {
+            // 删除原有关联
+            taskMetricRepository.deleteByTaskId(id);
+            
+            // 保存新关联
+            if (!createDTO.getMetrics().isEmpty()) {
+                List<TaskMetric> taskMetrics = createDTO.getMetrics().stream()
+                        .map(metricDTO -> {
+                            TaskMetric taskMetric = new TaskMetric();
+                            taskMetric.setTaskId(savedTask.getId());
+                            taskMetric.setMetricName(metricDTO.getMetricName());
+                            taskMetric.setMetricType(metricDTO.getMetricType());
+                            taskMetric.setMetricParams(metricDTO.getMetricParams());
+                            taskMetric.setSortOrder(metricDTO.getSortOrder());
+                            return taskMetric;
+                        })
+                        .collect(Collectors.toList());
+                
+                taskMetricRepository.saveAll(taskMetrics);
+            }
+        }
+        
+        // 更新任务调度信息
+        if (createDTO.getSchedule() != null) {
+            // 查询原有调度信息
+            TaskSchedule taskSchedule = taskScheduleRepository.findByTaskId(id)
+                    .orElseGet(() -> {
+                        TaskSchedule newSchedule = new TaskSchedule();
+                        newSchedule.setTaskId(id);
+                        return newSchedule;
+                    });
+            
+            // 更新调度信息
+            taskSchedule.setScheduleType(createDTO.getSchedule().getScheduleType());
+            taskSchedule.setCronExpression(createDTO.getSchedule().getCronExpression());
+            taskSchedule.setStartTime(createDTO.getSchedule().getStartTime());
+            taskSchedule.setEndTime(createDTO.getSchedule().getEndTime());
+            taskSchedule.setIntervalValue(createDTO.getSchedule().getIntervalValue());
+            taskSchedule.setIntervalUnit(createDTO.getSchedule().getIntervalUnit());
+            taskSchedule.setTriggerType(createDTO.getSchedule().getTriggerType());
+            taskSchedule.setTriggerEvent(createDTO.getSchedule().getTriggerEvent());
+            taskSchedule.setMaxExecutions(createDTO.getSchedule().getMaxExecutions());
+            taskSchedule.setTimeoutMinutes(createDTO.getSchedule().getTimeoutMinutes());
+            taskSchedule.setRetryStrategy(createDTO.getSchedule().getRetryStrategy());
+            taskSchedule.setMaxRetries(createDTO.getSchedule().getMaxRetries());
+            
+            taskScheduleRepository.save(taskSchedule);
+        }
+        
+        return findTaskById(id);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTask(Long id) {
+        // 查询任务
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 逻辑删除
+        task.setDeletedAt(LocalDateTime.now());
+        taskRepository.save(task);
+    }
+
+    @Override
+    @Transactional
+    public TaskDTO startTask(Long id) {
+        // 查询任务
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 更新状态为运行中
+        task.setStatus(1); // 1-运行中
+        taskRepository.save(task);
+        
+        // 创建任务执行记录
+        TaskExecution execution = new TaskExecution();
+        execution.setTaskId(id);
+        execution.setExecutionId(UUID.randomUUID().toString()); // 生成唯一的执行ID
+        execution.setStartTime(LocalDateTime.now());
+        execution.setStatus(1); // 1-运行中
+        taskExecutionRepository.save(execution);
+        
+        return findTaskById(id);
+    }
+
+    @Override
+    @Transactional
+    public TaskDTO pauseTask(Long id) {
+        // 查询任务
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 更新状态为已暂停
+        task.setStatus(3); // 3-已暂停
+        taskRepository.save(task);
+        
+        // 更新任务执行记录
+        List<TaskExecution> executions = taskExecutionRepository.findByTaskIdAndStatus(id, 1); // 1-运行中
+        if (!executions.isEmpty()) {
+            TaskExecution execution = executions.get(0);
+            execution.setStatus(3); // 3-已暂停
+            taskExecutionRepository.save(execution);
+        }
+        
+        return findTaskById(id);
+    }
+
+    @Override
+    @Transactional
+    public TaskDTO stopTask(Long id) {
+        // 查询任务
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 更新状态为已调度
+        task.setStatus(2); // 2-已调度
+        taskRepository.save(task);
+        
+        // 更新任务执行记录
+        List<TaskExecution> executions = taskExecutionRepository.findByTaskIdAndStatus(id, 1); // 1-运行中
+        if (!executions.isEmpty()) {
+            TaskExecution execution = executions.get(0);
+            execution.setStatus(4); // 4-已完成
+            execution.setEndTime(LocalDateTime.now());
+            // 计算执行时长（毫秒）
+            if (execution.getStartTime() != null && execution.getEndTime() != null) {
+                long startMillis = execution.getStartTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                long endMillis = execution.getEndTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                execution.setExecutionTime(endMillis - startMillis);
+            }
+            taskExecutionRepository.save(execution);
+        }
+        
+        return findTaskById(id);
+    }
+
+    @Override
+    @Transactional
+    public void batchTaskAction(String action, TaskBatchActionDTO batchActionDTO) {
+        if (batchActionDTO.getIds() == null || batchActionDTO.getIds().isEmpty()) {
+            throw new RuntimeException("任务ID列表不能为空");
+        }
+        
+        switch (action) {
+            case "start":
+                batchActionDTO.getIds().forEach(this::startTask);
+                break;
+            case "pause":
+                batchActionDTO.getIds().forEach(this::pauseTask);
+                break;
+            case "stop":
+                batchActionDTO.getIds().forEach(this::stopTask);
+                break;
+            case "delete":
+                batchActionDTO.getIds().forEach(this::deleteTask);
+                break;
+            default:
+                throw new RuntimeException("不支持的操作类型");
+        }
+    }
+
+    @Override
+    public TaskStatsDTO getTaskStats() {
+        TaskStatsDTO statsDTO = new TaskStatsDTO();
+        
+        // 查询各状态任务数量
+        statsDTO.setTotal(taskRepository.countTotalTasks());
+        statsDTO.setRunning(taskRepository.countRunningTasks());
+        statsDTO.setScheduled(taskRepository.countScheduledTasks());
+        statsDTO.setPaused(taskRepository.countPausedTasks());
+        statsDTO.setCompleted(taskRepository.countCompletedTasks());
+        statsDTO.setFailed(taskRepository.countFailedTasks());
+        
+        // 查询今日创建任务数量
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
+        statsDTO.setTodayCreated(taskRepository.countTodayCreatedTasks(startOfDay, endOfDay));
+        
+        // 查询今日执行任务数量
+        // 使用查询今日执行记录数量来代替
+        long todayExecutions = taskExecutionRepository.findByStartTimeBetween(startOfDay, endOfDay).size();
+        statsDTO.setTodayExecuted(todayExecutions);
+        
+        return statsDTO;
+    }
+
+    @Override
+    public Page<TaskDeviceDTO> getAvailableDevices(TaskQueryDTO queryDTO) {
+        // 构建分页参数
+        Pageable pageable;
+        if (StringUtils.hasText(queryDTO.getSortBy())) {
+            Sort.Direction direction = "asc".equalsIgnoreCase(queryDTO.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            pageable = PageRequest.of(queryDTO.getPageNum() - 1, queryDTO.getPageSize(), Sort.by(direction, queryDTO.getSortBy()));
+        } else {
+            pageable = PageRequest.of(queryDTO.getPageNum() - 1, queryDTO.getPageSize(), Sort.by(Sort.Direction.ASC, "id"));
+        }
+        
+        // 从设备服务获取设备列表
+        String deviceName = null;
+        String deviceType = null;
+        Integer status = null;
+        Long groupId = null;
+        
+        // 解析查询参数
+        if (StringUtils.hasText(queryDTO.getKeyword())) {
+            deviceName = queryDTO.getKeyword();
+        }
+        
+        if (StringUtils.hasText(queryDTO.getTaskType())) {
+            deviceType = queryDTO.getTaskType();
+        }
+        
+        if (StringUtils.hasText(queryDTO.getStatus())) {
+            if ("online".equalsIgnoreCase(queryDTO.getStatus())) {
+                status = 1; // 在线
+            } else if ("offline".equalsIgnoreCase(queryDTO.getStatus())) {
+                status = 0; // 离线
+            } else if ("maintenance".equalsIgnoreCase(queryDTO.getStatus())) {
+                status = 2; // 维护中
+            }
+        }
+        
+        // 调用设备服务获取设备列表
+        Page<Device> devicePage = deviceService.findByConditions(
+                deviceName, deviceType, status, groupId, pageable);
+        
+        // 转换为TaskDeviceDTO
+        return devicePage.map(device -> {
+            TaskDeviceDTO dto = new TaskDeviceDTO();
+            dto.setId(device.getId());
+            dto.setDeviceId(device.getId());
+            dto.setDeviceCode(device.getCode());
+            dto.setDeviceName(device.getName());
+            dto.setDeviceType(device.getType());
+            dto.setLocation(device.getLocation());
+            dto.setStatus(convertDeviceStatus(device.getStatus()));
+            dto.setIpAddress(device.getIpAddress());
+            return dto;
+        });
+    }
+    
+    /**
+     * 转换设备状态
+     */
+    private String convertDeviceStatus(Integer status) {
+        if (status == null) return "unknown";
+        
+        switch (status) {
+            case 0: return "offline";
+            case 1: return "online";
+            case 2: return "maintenance";
+            default: return "unknown";
+        }
+    }
+
+    @Override
+    public List<MetricTemplateDTO> getMetricTemplates() {
+        List<MetricTemplate> templates = metricTemplateRepository.findAll();
+        
+        return templates.stream()
+                .map(this::convertToMetricTemplateDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public TaskDraftDTO saveTaskDraft(TaskDraftDTO draftDTO) {
+        // 查询草稿
+        TaskDraft draft;
+        if (StringUtils.hasText(draftDTO.getDraftId())) {
+            draft = taskDraftRepository.findByDraftId(draftDTO.getDraftId())
+                    .orElseGet(() -> {
+                        TaskDraft newDraft = new TaskDraft();
+                        newDraft.setDraftId(UUID.randomUUID().toString());
+                        return newDraft;
+                    });
+        } else {
+            draft = new TaskDraft();
+            draft.setDraftId(UUID.randomUUID().toString());
+        }
+        
+        // 更新草稿
+        draft.setDraftData(draftDTO.getDraftData());
+        draft.setStep(draftDTO.getStep());
+        draft.setCreatedBy(draftDTO.getCreatedBy());
+        
+        // 保存草稿
+        draft = taskDraftRepository.save(draft);
+        
+        return convertToTaskDraftDTO(draft);
+    }
+
+    @Override
+    public TaskDraftDTO getTaskDraft(String draftId) {
+        TaskDraft draft = taskDraftRepository.findByDraftId(draftId)
+                .orElseThrow(() -> new RuntimeException("草稿不存在"));
+        
+        return convertToTaskDraftDTO(draft);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTaskDraft(String draftId) {
+        taskDraftRepository.deleteByDraftId(draftId);
+    }
+
+    /**
+     * 将任务实体转换为DTO
+     */
+    private TaskDTO convertToTaskDTO(Task task) {
+        TaskDTO dto = new TaskDTO();
+        dto.setId(task.getId());
+        dto.setTaskName(task.getTaskName());
+        dto.setTaskType(task.getTaskType());
+        dto.setDescription(task.getDescription());
+        dto.setStatus(convertStatusToString(task.getStatus()));
+        dto.setCreatedAt(task.getCreatedAt());
+        dto.setUpdatedAt(task.getUpdatedAt());
+        dto.setPriority(convertPriorityToString(task.getPriority()));
+        
+        // 处理标签
+        if (StringUtils.hasText(task.getTags())) {
+            dto.setTags(Arrays.asList(task.getTags().split(",")));
+        }
+        
+        // 查询设备数量
+        Long deviceCount = taskDeviceRepository.countByTaskId(task.getId());
+        dto.setDeviceCount(deviceCount.intValue());
+        
+        // 查询执行次数
+        Long executionCount = taskExecutionRepository.countByTaskId(task.getId());
+        dto.setExecutionCount(executionCount.intValue());
+        
+        // 查询设备列表
+        List<TaskDevice> taskDevices = taskDeviceRepository.findByTaskId(task.getId());
+        if (!taskDevices.isEmpty()) {
+            dto.setDevices(taskDevices.stream()
+                    .map(this::convertToTaskDeviceDTO)
+                    .collect(Collectors.toList()));
+        }
+        
+        // 查询指标列表
+        List<TaskMetric> taskMetrics = taskMetricRepository.findByTaskId(task.getId());
+        if (!taskMetrics.isEmpty()) {
+            dto.setMetrics(taskMetrics.stream()
+                    .map(this::convertToTaskMetricDTO)
+                    .collect(Collectors.toList()));
+        }
+        
+        // 查询调度信息
+        taskScheduleRepository.findByTaskId(task.getId())
+                .ifPresent(schedule -> dto.setSchedule(convertToTaskScheduleDTO(schedule)));
+        
+        // 查询最近一次执行记录
+        taskExecutionRepository.findTopByTaskIdOrderByStartTimeDesc(task.getId())
+                .ifPresent(execution -> {
+                    dto.setStartTime(execution.getStartTime());
+                    dto.setEndTime(execution.getEndTime());
+                });
+        
+        // 查询下次执行时间
+        taskScheduleRepository.findByTaskId(task.getId())
+                .ifPresent(schedule -> {
+                    // 这里应该根据调度信息计算下次执行时间
+                    // 由于涉及复杂的cron表达式解析，这里简化处理
+                    if (schedule.getStartTime() != null && schedule.getStartTime().isAfter(LocalDateTime.now())) {
+                        dto.setNextExecutionTime(schedule.getStartTime());
+                    }
+                });
+        
+        return dto;
+    }
+
+    /**
+     * 将任务设备实体转换为DTO
+     */
+    private TaskDeviceDTO convertToTaskDeviceDTO(TaskDevice taskDevice) {
+        TaskDeviceDTO dto = new TaskDeviceDTO();
+        dto.setId(taskDevice.getId());
+        dto.setDeviceId(taskDevice.getDeviceId());
+        dto.setDeviceName(taskDevice.getDeviceName());
+        dto.setDeviceType(taskDevice.getDeviceType());
+        return dto;
+    }
+
+    /**
+     * 将任务指标实体转换为DTO
+     */
+    private TaskMetricDTO convertToTaskMetricDTO(TaskMetric taskMetric) {
+        TaskMetricDTO dto = new TaskMetricDTO();
+        dto.setId(taskMetric.getId());
+        dto.setMetricName(taskMetric.getMetricName());
+        dto.setMetricType(taskMetric.getMetricType());
+        dto.setMetricParams(taskMetric.getMetricParams());
+        dto.setSortOrder(taskMetric.getSortOrder());
+        return dto;
+    }
+
+    /**
+     * 将任务调度实体转换为DTO
+     */
+    private TaskScheduleDTO convertToTaskScheduleDTO(TaskSchedule taskSchedule) {
+        TaskScheduleDTO dto = new TaskScheduleDTO();
+        dto.setId(taskSchedule.getId());
+        dto.setScheduleType(taskSchedule.getScheduleType());
+        dto.setCronExpression(taskSchedule.getCronExpression());
+        dto.setStartTime(taskSchedule.getStartTime());
+        dto.setEndTime(taskSchedule.getEndTime());
+        dto.setIntervalValue(taskSchedule.getIntervalValue());
+        dto.setIntervalUnit(taskSchedule.getIntervalUnit());
+        dto.setTriggerType(taskSchedule.getTriggerType());
+        dto.setTriggerEvent(taskSchedule.getTriggerEvent());
+        dto.setMaxExecutions(taskSchedule.getMaxExecutions());
+        dto.setTimeoutMinutes(taskSchedule.getTimeoutMinutes());
+        dto.setRetryStrategy(taskSchedule.getRetryStrategy());
+        dto.setMaxRetries(taskSchedule.getMaxRetries());
+        return dto;
+    }
+
+    /**
+     * 将指标模板实体转换为DTO
+     */
+    private MetricTemplateDTO convertToMetricTemplateDTO(MetricTemplate template) {
+        MetricTemplateDTO dto = new MetricTemplateDTO();
+        dto.setId(template.getId());
+        dto.setTemplateName(template.getTemplateName());
+        dto.setCategory(template.getCategory());
+        dto.setMetricType(template.getMetricType());
+        dto.setDeviceType(template.getDeviceType());
+        dto.setDefaultParams(template.getDefaultParams());
+        dto.setDescription(template.getDescription());
+        dto.setIsSystem(template.getIsSystem());
+        return dto;
+    }
+
+    /**
+     * 将任务草稿实体转换为DTO
+     */
+    private TaskDraftDTO convertToTaskDraftDTO(TaskDraft draft) {
+        TaskDraftDTO dto = new TaskDraftDTO();
+        dto.setDraftId(draft.getDraftId());
+        dto.setDraftData(draft.getDraftData());
+        dto.setStep(draft.getStep());
+        dto.setCreatedAt(draft.getCreatedAt());
+        dto.setUpdatedAt(draft.getUpdatedAt());
+        dto.setCreatedBy(draft.getCreatedBy());
+        return dto;
+    }
+
+    /**
+     * 将状态码转换为状态字符串
+     */
+    private String convertStatusToString(Integer status) {
+        if (status == null) {
+            return "unknown";
+        }
+        
+        switch (status) {
+            case 1: return "running";
+            case 2: return "scheduled";
+            case 3: return "paused";
+            case 4: return "completed";
+            case 5: return "failed";
+            default: return "unknown";
+        }
+    }
+
+    /**
+     * 将状态字符串转换为状态码
+     */
+    private Integer convertStatusToCode(String status) {
+        if (!StringUtils.hasText(status)) {
+            return null;
+        }
+        
+        switch (status.toLowerCase()) {
+            case "running": return 1;
+            case "scheduled": return 2;
+            case "paused": return 3;
+            case "completed": return 4;
+            case "failed": return 5;
+            default: return null;
+        }
+    }
+
+    /**
+     * 将优先级字符串转换为优先级码
+     */
+    private Integer convertPriorityToCode(String priority) {
+        if (!StringUtils.hasText(priority)) {
+            return 2; // 默认中优先级
+        }
+        
+        switch (priority.toLowerCase()) {
+            case "high": return 3;
+            case "medium": return 2;
+            case "low": return 1;
+            default: return 2;
+        }
+    }
+
+    /**
+     * 将优先级码转换为优先级字符串
+     */
+    private String convertPriorityToString(Integer priority) {
+        if (priority == null) {
+            return "medium";
+        }
+        
+        switch (priority) {
+            case 3: return "high";
+            case 2: return "medium";
+            case 1: return "low";
+            default: return "medium";
+        }
+    }
+} 
