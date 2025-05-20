@@ -284,6 +284,24 @@ CREATE TABLE IF NOT EXISTS tb_metric_templates (
     deleted_at DATETIME DEFAULT NULL COMMENT '删除时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标模板表';
 
+-- 指标模板应用历史表
+CREATE TABLE IF NOT EXISTS tb_metric_template_applications (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
+    template_id BIGINT NOT NULL COMMENT '模板ID',
+    template_name VARCHAR(100) COMMENT '模板名称',
+    apply_time DATETIME NOT NULL COMMENT '应用时间',
+    apply_user_id BIGINT COMMENT '应用用户ID',
+    apply_user VARCHAR(50) COMMENT '应用用户名',
+    affected_count INT DEFAULT 0 COMMENT '影响指标数',
+    status VARCHAR(20) NOT NULL COMMENT '状态：SUCCESS-成功，PARTIAL-部分成功，FAILED-失败',
+    result_info TEXT COMMENT '应用结果信息',
+    device_ids TEXT COMMENT '应用设备ID集合，JSON数组格式',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY idx_template_id (template_id),
+    KEY idx_apply_time (apply_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标模板应用历史表';
+
 -- 任务调度表
 CREATE TABLE IF NOT EXISTS tb_task_schedules (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'ID',
@@ -330,6 +348,61 @@ CREATE TABLE IF NOT EXISTS tb_task_executions (
     KEY idx_start_time (start_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务执行表';
 
+-- 指标配置表
+CREATE TABLE IF NOT EXISTS tb_metrics (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '指标ID',
+    metric_name VARCHAR(100) NOT NULL COMMENT '指标名称',
+    metric_key VARCHAR(100) NOT NULL COMMENT '指标标识符',
+    metric_type VARCHAR(50) NOT NULL COMMENT '指标类型',
+    description TEXT COMMENT '指标描述',
+    applicable_device_type VARCHAR(50) COMMENT '适用设备类型',
+    collection_method VARCHAR(50) NOT NULL COMMENT '采集方式',
+    protocol_config TEXT COMMENT '协议配置（JSON格式）',
+    collection_interval INT NOT NULL COMMENT '采集频率（秒）',
+    collection_interval_unit VARCHAR(10) DEFAULT 's' COMMENT '采集频率单位',
+    data_type VARCHAR(50) DEFAULT 'gauge' COMMENT '数据类型',
+    unit VARCHAR(50) COMMENT '单位',
+    data_format VARCHAR(50) DEFAULT 'default' COMMENT '数据格式',
+    data_transform_type VARCHAR(50) DEFAULT 'none' COMMENT '数据转换类型',
+    transform_formula VARCHAR(255) COMMENT '转换公式',
+    min_value VARCHAR(50) COMMENT '最小有效值',
+    max_value VARCHAR(50) COMMENT '最大有效值',
+    processing_script TEXT COMMENT '数据处理脚本',
+    enable_cache TINYINT DEFAULT 1 COMMENT '启用缓存',
+    retention_period VARCHAR(50) DEFAULT '30d' COMMENT '数据保留期',
+    threshold_enabled TINYINT DEFAULT 1 COMMENT '启用阈值告警',
+    warning_threshold VARCHAR(50) COMMENT '警告阈值',
+    warning_duration INT COMMENT '警告持续时间（分钟）',
+    critical_threshold VARCHAR(50) COMMENT '严重阈值',
+    critical_duration INT COMMENT '严重持续时间（分钟）',
+    notification_groups VARCHAR(255) COMMENT '通知组',
+    last_collection_time DATETIME COMMENT '最后采集时间',
+    status TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+    created_by BIGINT COMMENT '创建人ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间',
+    UNIQUE KEY uk_metric_key (metric_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标配置表';
+
+-- 采集器配置表
+CREATE TABLE IF NOT EXISTS tb_collectors (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '采集器ID',
+    collector_name VARCHAR(100) NOT NULL COMMENT '采集器名称',
+    collector_type VARCHAR(50) NOT NULL COMMENT '采集器类型',
+    host VARCHAR(100) COMMENT '主机地址',
+    port INT COMMENT '端口',
+    is_main TINYINT DEFAULT 0 COMMENT '是否主采集器：0-否，1-是',
+    description VARCHAR(255) COMMENT '描述',
+    config_params TEXT COMMENT '配置参数（JSON格式）',
+    status TINYINT DEFAULT 1 COMMENT '状态：0-异常，1-正常，2-警告',
+    status_info VARCHAR(255) COMMENT '状态信息',
+    last_heartbeat DATETIME COMMENT '最后心跳时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采集器配置表';
+
 -- 初始化数据
 
 -- 初始化角色
@@ -337,13 +410,6 @@ INSERT INTO tb_roles (role_code, role_name, description) VALUES
 ('ADMIN', '系统管理员', '系统管理员，拥有所有权限'),
 ('OPERATOR', '操作员', '系统操作员，拥有基本操作权限'),
 ('VIEWER', '访客', '系统访客，只有查看权限');
-
--- 初始化管理员用户（密码：admin123，实际应用中应该使用加密密码）
-INSERT INTO tb_users (username, password, name, email, status) VALUES 
-('admin', '$2a$10$X/uX0JZ9iBEJFM.TJKDgpuXCZWqDcVN7vXbfzLmNe0Y4MSgJZoaDW', '系统管理员', 'admin@skyeye.com', 1);
-
--- 关联管理员用户和管理员角色
-INSERT INTO tb_user_roles (user_id, role_id) VALUES (1, 1);
 
 -- 初始化权限
 INSERT INTO tb_permissions (permission_code, permission_name, type, parent_id, path, component, icon, sort) VALUES 
@@ -389,4 +455,20 @@ SELECT 2, id FROM tb_permissions WHERE permission_code IN
 -- 关联访客角色和查看权限
 INSERT INTO tb_role_permissions (role_id, permission_id)
 SELECT 3, id FROM tb_permissions WHERE permission_code IN 
-('dashboard', 'device', 'device:detail', 'monitoring', 'history'); 
+('dashboard', 'device', 'device:detail', 'monitoring', 'history');
+
+-- 初始化默认采集器
+INSERT INTO tb_collectors (collector_name, collector_type, host, port, is_main, description, status) VALUES 
+('主采集器', 'main', 'localhost', 8000, 1, '系统默认主采集器', 1),
+('备用采集器', 'backup', 'localhost', 8001, 0, '系统默认备用采集器', 1),
+('SNMP采集器', 'snmp', 'localhost', 8002, 0, 'SNMP协议采集器', 1),
+('JMX采集器', 'jmx', 'localhost', 8003, 0, 'JMX协议采集器', 1),
+('WMI采集器', 'wmi', 'localhost', 8004, 0, 'WMI协议采集器', 1);
+
+-- 初始化默认指标
+INSERT INTO tb_metrics (metric_name, metric_key, metric_type, applicable_device_type, collection_method, protocol_config, collection_interval, collection_interval_unit, data_type, unit, status) VALUES 
+('CPU使用率', 'cpu_usage', 'server', '服务器', 'snmp', '{"oid": ".1.3.6.1.2.1.25.3.3.1.2", "version": "v2c", "community": "public"}', 30, 's', 'gauge', '%', 1),
+('内存使用率', 'memory_usage', 'server', '服务器', 'snmp', '{"oid": ".1.3.6.1.2.1.25.2.3.1.6", "version": "v2c", "community": "public"}', 30, 's', 'gauge', '%', 1),
+('磁盘使用率', 'disk_usage', 'server', '服务器', 'snmp', '{"oid": ".1.3.6.1.2.1.25.2.3.1.5", "version": "v2c", "community": "public"}', 60, 's', 'gauge', '%', 1),
+('网络流量', 'network_traffic', 'server', '服务器', 'snmp', '{"oid": ".1.3.6.1.2.1.2.2.1.10", "version": "v2c", "community": "public"}', 30, 's', 'counter', 'bytes/s', 1),
+('Nginx连接数', 'nginx_connections', 'middleware', 'Web服务器', 'http', '{"url": "http://{host}:{port}/status", "method": "GET", "dataPath": "$.connections.active"}', 60, 's', 'gauge', '连接数', 1); 

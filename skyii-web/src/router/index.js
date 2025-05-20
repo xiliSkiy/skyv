@@ -77,12 +77,6 @@ const routes = [
         meta: { title: '报警中心', icon: 'Bell', requiresAuth: true }
       },
       {
-        path: 'analytics',
-        name: 'Analytics',
-        component: () => import('@/views/analytics/Analytics.vue'),
-        meta: { title: '数据分析', icon: 'DataAnalysis', requiresAuth: true }
-      },
-      {
         path: 'task',
         name: 'Task',
         component: () => import('@/views/task/TaskList.vue'),
@@ -125,12 +119,6 @@ const routes = [
         meta: { title: '编辑任务', requiresAuth: true, activeMenu: '/task', isEdit: true }
       },
       {
-        path: 'history',
-        name: 'History',
-        component: () => import('@/views/history/History.vue'),
-        meta: { title: '历史记录', icon: 'Clock', requiresAuth: true }
-      },
-      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/views/settings/Settings.vue'),
@@ -143,52 +131,15 @@ const routes = [
         meta: { title: '系统配置', requiresAuth: true, activeMenu: '/settings' }
       },
       {
-        path: 'settings/network',
-        name: 'NetworkSettings',
-        component: () => import('@/views/settings/NetworkSettings.vue'),
-        meta: { title: '网络配置', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/storage',
-        name: 'StorageSettings',
-        component: () => import('@/views/settings/StorageSettings.vue'),
-        meta: { title: '存储管理', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/alert',
-        name: 'AlertSettings',
-        component: () => import('@/views/settings/AlertSettings.vue'),
-        meta: { title: '报警规则', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/log',
-        name: 'LogSettings',
-        component: () => import('@/views/settings/LogSettings.vue'),
-        meta: { title: '日志管理', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/backup',
-        name: 'BackupSettings',
-        component: () => import('@/views/settings/BackupSettings.vue'),
-        meta: { title: '备份与恢复', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/security',
-        name: 'SecuritySettings',
-        component: () => import('@/views/settings/SecuritySettings.vue'),
-        meta: { title: '安全设置', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/notification',
-        name: 'NotificationSettings',
-        component: () => import('@/views/settings/NotificationSettings.vue'),
-        meta: { title: '通知设置', requiresAuth: true, activeMenu: '/settings' }
-      },
-      {
-        path: 'settings/ai',
-        name: 'AISettings',
-        component: () => import('@/views/settings/AISettings.vue'),
-        meta: { title: '智能分析', requiresAuth: true, activeMenu: '/settings' }
+        path: 'settings/metrics',
+        name: 'SettingsMetrics',
+        component: () => import('@/views/settings/metrics/MetricsView.vue'),
+        meta: { 
+          title: '指标配置',
+          requiresAuth: true,
+          icon: 'fas fa-chart-line',
+          parent: 'Settings'
+        }
       },
       {
         path: 'user',

@@ -2,6 +2,7 @@ package com.skyeye.scheduler.repository;
 
 import com.skyeye.scheduler.entity.MetricTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,7 +11,8 @@ import java.util.List;
  * 指标模板数据访问接口
  */
 @Repository
-public interface MetricTemplateRepository extends JpaRepository<MetricTemplate, Long> {
+public interface MetricTemplateRepository extends JpaRepository<MetricTemplate, Long>, 
+        JpaSpecificationExecutor<MetricTemplate> {
 
     /**
      * 根据模板名称查询指标模板

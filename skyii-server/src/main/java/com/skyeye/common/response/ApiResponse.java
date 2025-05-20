@@ -33,6 +33,13 @@ public class ApiResponse<T> implements Serializable {
     private Object meta;
 
     /**
+     * 成功响应（无数据）
+     */
+    public static <T> ApiResponse<T> success() {
+        return success(null, "操作成功");
+    }
+
+    /**
      * 成功响应
      */
     public static <T> ApiResponse<T> success(T data) {

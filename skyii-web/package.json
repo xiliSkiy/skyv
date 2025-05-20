@@ -16,6 +16,7 @@
     "element-plus": "^2.4.0",
     "hls.js": "^1.6.2",
     "js-cookie": "^3.0.5",
+    "mitt": "^3.0.1",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "vue": "^3.3.8",

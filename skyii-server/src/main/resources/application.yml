@@ -36,6 +36,13 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
 
+  # 文件编码配置
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
 # JWT配置
 jwt:
   secret: skyeye_secret_key_must_have_at_least_32_characters
@@ -48,6 +55,10 @@ logging:
     com.skyeye: DEBUG
     org.springframework.web: INFO
     org.hibernate: INFO
+  config: classpath:logback-spring.xml
+  charset: UTF-8
+  file:
+    name: logs/skyeye.log
 
 # 文件上传配置
 file:

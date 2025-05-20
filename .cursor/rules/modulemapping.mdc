@@ -22,11 +22,18 @@ alwaysApply: true
 | analytics.html | 数据分析 | 数据统计与分析 | 中 |
 | task_scheduling.html | 任务调度 | 任务列表与管理 | 中 |
 | task_create.html | 任务调度 | 创建新任务 | 中 |
-| device_selection.html | 任务调度 | 设备选择、批量操作 | 中 |
-| schedule_setting.html | 任务调度 | 任务计划配置 | 中 |
-| metrics_configuration.html | 任务调度 | 监控指标配置 | 中 |
+| task_device_selection.html | 任务调度 | 设备选择、批量操作 | 中 |
+| task_metrics_config.html | 任务调度 | 监控指标配置 | 中 |
+| task_schedule_setting.html | 任务调度 | 任务计划配置 | 中 |
 | settings.html | 系统设置 | 设置模块入口 | 高 |
 | settings_system.html | 系统设置 | 基本系统配置 | 高 |
+| settings_metrics.html | 系统设置 | 指标配置 | 指标管理 | 高 |
+| settings_metrics_templates.html | 系统设置 | 指标配置 | 指标模板 | 高 |
+| collector_management.html | 系统设置 | 采集器管理 | 高 |
+| settings_metrics_history.html | 系统设置 | 采集器管理 | 创建采集器 | 高 |
+| settings_metrics_history.html | 系统设置 | 采集器管理 | 配置 | 高 |
+| settings_metrics_history.html | 系统设置 | 采集器管理 | 详情 | 高 |
+| settings_metrics_history.html | 系统设置 | 指标配置 | 采集历史 | 高 |
 | settings_network.html | 系统设置 | 网络参数配置 | 高 |
 | settings_storage.html | 系统设置 | 存储资源管理 | 高 |
 | settings_security.html | 系统设置 | 安全相关配置 | 高 |

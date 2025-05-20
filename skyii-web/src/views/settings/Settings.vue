@@ -130,6 +130,19 @@
           </el-button>
         </div>
       </el-card>
+      <!-- 指标配置卡片 -->
+      <el-card class="settings-card" shadow="hover">
+        <div class="settings-card-content">
+          <div class="settings-icon">
+            <el-icon :size="40" color="#1e3c72"><Message /></el-icon>
+          </div>
+          <h5 class="settings-title">指标配置</h5>
+          <p class="settings-description">管理监控指标、采集器、指标模板和采集历史记录。</p>
+          <el-button type="primary" @click="navigateTo('SettingsMetrics')">
+            <el-icon><Tools /></el-icon> 管理设置
+          </el-button>
+        </div>
+      </el-card>
     </div>
     
     <!-- 系统信息 -->

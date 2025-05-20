@@ -383,133 +383,133 @@
               </el-form-item>
             </el-form>
           </el-card>
-        </el-col>
+        </div>
+      </el-tab-pane>
+      
+      <el-col :span="8">
+        <!-- 系统预览卡片 - 仅在appearance标签页显示 -->
+        <el-card v-if="activeTab === 'appearance'" class="settings-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <el-icon><View /></el-icon> 界面预览
+            </div>
+          </template>
+          <div class="theme-preview-container">
+            <div class="theme-preview" :class="{ 'active': true, 'dark-preview': themeForm.darkMode }">
+              <img src="https://via.placeholder.com/400x300/f8f9fa/1e3c72?text=系统预览" class="preview-image" alt="系统预览">
+            </div>
+            <div class="preview-tip">当前选择的主题预览效果</div>
+          </div>
+        </el-card>
         
-        <el-col :span="8">
-          <!-- 系统预览卡片 - 仅在appearance标签页显示 -->
-          <el-card v-if="activeTab === 'appearance'" class="settings-card" shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <el-icon><View /></el-icon> 界面预览
-              </div>
-            </template>
-            <div class="theme-preview-container">
-              <div class="theme-preview" :class="{ 'active': true, 'dark-preview': themeForm.darkMode }">
-                <img src="https://via.placeholder.com/400x300/f8f9fa/1e3c72?text=系统预览" class="preview-image" alt="系统预览">
-              </div>
-              <div class="preview-tip">当前选择的主题预览效果</div>
+        <!-- 语言预览卡片 - 仅在language标签页显示 -->
+        <el-card v-if="activeTab === 'language'" class="settings-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Document /></el-icon> 语言示例
             </div>
-          </el-card>
-          
-          <!-- 语言预览卡片 - 仅在language标签页显示 -->
-          <el-card v-if="activeTab === 'language'" class="settings-card" shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <el-icon><Document /></el-icon> 语言示例
-              </div>
-            </template>
-            <div class="language-preview">
-              <h4>界面元素示例</h4>
-              <div class="preview-item">
-                <div class="preview-label">菜单项:</div>
-                <div class="preview-value">仪表盘、设备管理、报警中心</div>
-              </div>
-              <div class="preview-item">
-                <div class="preview-label">按钮:</div>
-                <div class="preview-value">保存、取消、确认、删除</div>
-              </div>
-              <div class="preview-item">
-                <div class="preview-label">提示信息:</div>
-                <div class="preview-value">操作成功、请输入必填项</div>
-              </div>
-              
-              <h4>日期时间格式示例</h4>
-              <div class="preview-item">
-                <div class="preview-label">日期:</div>
-                <div class="preview-value">2023-11-20</div>
-              </div>
-              <div class="preview-item">
-                <div class="preview-label">时间:</div>
-                <div class="preview-value">14:30:00</div>
-              </div>
-              
-              <h4>数字格式示例</h4>
-              <div class="preview-item">
-                <div class="preview-label">数字:</div>
-                <div class="preview-value">1,234,567.89</div>
-              </div>
-              <div class="preview-item">
-                <div class="preview-label">货币:</div>
-                <div class="preview-value">¥1,234,567.89</div>
-              </div>
+          </template>
+          <div class="language-preview">
+            <h4>界面元素示例</h4>
+            <div class="preview-item">
+              <div class="preview-label">菜单项:</div>
+              <div class="preview-value">仪表盘、设备管理、报警中心</div>
             </div>
-          </el-card>
-          
-          <!-- 系统状态卡片 -->
-          <el-card class="settings-card" shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <el-icon><Monitor /></el-icon> 系统状态
-              </div>
-            </template>
-            <div class="system-status">
-              <div class="status-item">
-                <span class="status-label">系统版本</span>
-                <span class="status-value">v2.5.3</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">上次更新</span>
-                <span class="status-value">2023-11-15</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">许可证状态</span>
-                <span class="status-value"><el-tag type="success" size="small">有效</el-tag></span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">许可证有效期</span>
-                <span class="status-value">2024-12-31</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">授权设备数</span>
-                <span class="status-value">50 / 100</span>
-              </div>
-              <el-divider></el-divider>
-              <div class="status-actions">
-                <el-button type="primary" plain @click="checkUpdate">
-                  <el-icon><Download /></el-icon> 检查更新
-                </el-button>
-                <el-button type="info" plain @click="manageLicense">
-                  <el-icon><Key /></el-icon> 管理许可证
-                </el-button>
-              </div>
+            <div class="preview-item">
+              <div class="preview-label">按钮:</div>
+              <div class="preview-value">保存、取消、确认、删除</div>
             </div>
-          </el-card>
-          
-          <!-- 操作记录卡片 -->
-          <el-card class="settings-card" shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <el-icon><Tickets /></el-icon> 最近操作记录
-              </div>
-            </template>
-            <div class="operation-logs">
-              <el-timeline>
-                <el-timeline-item
-                  v-for="(log, index) in operationLogs"
-                  :key="index"
-                  :timestamp="log.time"
-                  size="small">
-                  <div class="log-content">
-                    <div class="log-title">{{ log.title }}</div>
-                    <div class="log-user">{{ log.user }}</div>
-                  </div>
-                </el-timeline-item>
-              </el-timeline>
+            <div class="preview-item">
+              <div class="preview-label">提示信息:</div>
+              <div class="preview-value">操作成功、请输入必填项</div>
             </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+            
+            <h4>日期时间格式示例</h4>
+            <div class="preview-item">
+              <div class="preview-label">日期:</div>
+              <div class="preview-value">2023-11-20</div>
+            </div>
+            <div class="preview-item">
+              <div class="preview-label">时间:</div>
+              <div class="preview-value">14:30:00</div>
+            </div>
+            
+            <h4>数字格式示例</h4>
+            <div class="preview-item">
+              <div class="preview-label">数字:</div>
+              <div class="preview-value">1,234,567.89</div>
+            </div>
+            <div class="preview-item">
+              <div class="preview-label">货币:</div>
+              <div class="preview-value">¥1,234,567.89</div>
+            </div>
+          </div>
+        </el-card>
+        
+        <!-- 系统状态卡片 -->
+        <el-card class="settings-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Monitor /></el-icon> 系统状态
+            </div>
+          </template>
+          <div class="system-status">
+            <div class="status-item">
+              <span class="status-label">系统版本</span>
+              <span class="status-value">v2.5.3</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">上次更新</span>
+              <span class="status-value">2023-11-15</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">许可证状态</span>
+              <span class="status-value"><el-tag type="success" size="small">有效</el-tag></span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">许可证有效期</span>
+              <span class="status-value">2024-12-31</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">授权设备数</span>
+              <span class="status-value">50 / 100</span>
+            </div>
+            <el-divider></el-divider>
+            <div class="status-actions">
+              <el-button type="primary" plain @click="checkUpdate">
+                <el-icon><Download /></el-icon> 检查更新
+              </el-button>
+              <el-button type="info" plain @click="manageLicense">
+                <el-icon><Key /></el-icon> 管理许可证
+              </el-button>
+            </div>
+          </div>
+        </el-card>
+        
+        <!-- 操作记录卡片 -->
+        <el-card class="settings-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Tickets /></el-icon> 最近操作记录
+            </div>
+          </template>
+          <div class="operation-logs">
+            <el-timeline>
+              <el-timeline-item
+                v-for="(log, index) in operationLogs"
+                :key="index"
+                :timestamp="log.time"
+                size="small">
+                <div class="log-content">
+                  <div class="log-title">{{ log.title }}</div>
+                  <div class="log-user">{{ log.user }}</div>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 

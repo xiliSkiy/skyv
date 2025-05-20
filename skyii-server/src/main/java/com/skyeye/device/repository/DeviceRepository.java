@@ -32,14 +32,7 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
      */
     Page<Device> findByNameContaining(String name, Pageable pageable);
     
-    /**
-     * 根据设备状态查询
-     */
-    Page<Device> findByStatus(Integer status, Pageable pageable);
-    
-    /**
-     * 根据分组ID查询
-     */
+        /**     * 根据设备状态查询     */    Page<Device> findByStatus(Integer status, Pageable pageable);        /**     * 根据设备状态查询所有设备     */    List<Device> findByStatus(Integer status);        /**     * 根据设备类型和状态查询     */    List<Device> findByTypeAndStatus(String type, Integer status);        /**     * 根据分组ID查询     */
     List<Device> findByGroupId(Long groupId);
     
     /**

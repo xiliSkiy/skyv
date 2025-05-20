@@ -14,15 +14,14 @@ export function getDeviceList(params) {
 }
 
 /**
- * 条件查询设备
- * @param {Object} params 查询参数
+ * 根据类型获取设备
+ * @param {String} deviceType 设备类型
  * @returns {Promise}
  */
-export function searchDevices(params) {
+export function getDevicesByType(deviceType) {
   return request({
-    url: '/api/devices/search',
-    method: 'get',
-    params
+    url: `/api/devices/type/${deviceType}`,
+    method: 'get'
   })
 }
 
@@ -31,7 +30,7 @@ export function searchDevices(params) {
  * @param {Number} id 设备ID
  * @returns {Promise}
  */
-export function getDeviceDetail(id) {
+export function getDeviceById(id) {
   return request({
     url: `/api/devices/${id}`,
     method: 'get'
@@ -78,6 +77,19 @@ export function deleteDevice(id) {
 }
 
 /**
+ * 批量删除设备
+ * @param {Array} ids 设备ID列表
+ * @returns {Promise}
+ */
+export function batchDeleteDevices(ids) {
+  return request({
+    url: '/api/devices/batch',
+    method: 'delete',
+    data: { ids }
+  })
+}
+
+/**
  * 更新设备状态
  * @param {Number} id 设备ID
  * @param {Number} status 设备状态
@@ -87,22 +99,42 @@ export function updateDeviceStatus(id, status) {
   return request({
     url: `/api/devices/${id}/status`,
     method: 'put',
-    params: { status }
+    data: { status }
   })
 }
 
 /**
- * 批量更新设备状态
- * @param {Array} ids 设备ID列表
- * @param {Number} status 设备状态
+ * 获取设备统计信息
  * @returns {Promise}
  */
-export function batchUpdateDeviceStatus(ids, status) {
+export function getDeviceStatistics() {
   return request({
-    url: '/devices/batch/status',
-    method: 'put',
-    data: ids,
-    params: { status }
+    url: '/api/devices/statistics',
+    method: 'get'
+  })
+}
+
+/**
+ * 条件查询设备
+ * @param {Object} params 查询参数
+ * @returns {Promise}
+ */
+export function searchDevices(params) {
+  return request({
+    url: '/api/devices/search',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取设备状态统计
+ * @returns {Promise}
+ */
+export function getDeviceStatusStats() {
+  return request({
+    url: '/api/devices/stats/status',
+    method: 'get'
   })
 }
 
@@ -119,12 +151,16 @@ export function checkDeviceConnection(id) {
 }
 
 /**
- * 获取设备状态统计
+ * 批量更新设备状态
+ * @param {Array} ids 设备ID列表
+ * @param {Number} status 设备状态
  * @returns {Promise}
  */
-export function getDeviceStatusStats() {
+export function batchUpdateDeviceStatus(ids, status) {
   return request({
-    url: '/api/devices/stats/status',
-    method: 'get'
+    url: '/devices/batch/status',
+    method: 'put',
+    data: ids,
+    params: { status }
   })
 } 
