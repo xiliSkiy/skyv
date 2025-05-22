@@ -23,7 +23,7 @@ import com.skyeye.metrics.service.CollectorService;
 /**
  * 采集器配置服务实现类
  */
-@Service
+@Service("metricsCollectorServiceImpl")
 public class CollectorServiceImpl implements CollectorService {
 
     @Autowired

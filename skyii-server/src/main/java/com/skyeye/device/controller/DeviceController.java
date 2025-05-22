@@ -95,12 +95,20 @@ public class DeviceController {
             @ApiParam("页码") @RequestParam(defaultValue = "0") int page,
             @ApiParam("每页记录数") @RequestParam(defaultValue = "10") int size,
             @ApiParam("排序字段") @RequestParam(defaultValue = "id") String sort,
-            @ApiParam("排序方向") @RequestParam(defaultValue = "desc") String direction) {
+            @ApiParam("排序方向") @RequestParam(defaultValue = "desc") String direction,
+            @ApiParam("采集器ID") @RequestParam(required = false) Long collectorId,
+            @ApiParam("包含已分配设备") @RequestParam(required = false, defaultValue = "false") boolean includeAssigned) {
         
         Sort.Direction dir = "asc".equalsIgnoreCase(direction) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(dir, sort));
         
-        Page<Device> devicePage = deviceService.findAll(pageable);
+        Page<Device> devicePage;
+        if (collectorId != null) {
+            // 如果指定了采集器ID，根据采集器ID查询设备
+            devicePage = deviceService.findByCollectorId(collectorId, includeAssigned, pageable);
+        } else {
+            devicePage = deviceService.findAll(pageable);
+        }
         
         PageMeta pageMeta = new PageMeta(
                 devicePage.getTotalElements(),
@@ -108,7 +116,9 @@ public class DeviceController {
                 devicePage.getSize()
         );
         
-        return ApiResponse.success(devicePage.getContent(), "获取设备列表成功", pageMeta);
+        // 确保返回空列表而不是null
+        List<Device> devices = devicePage.getContent();
+        return ApiResponse.success(devices != null ? devices : List.of(), "获取设备列表成功", pageMeta);
     }
 
     /**

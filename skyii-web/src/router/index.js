@@ -142,6 +142,37 @@ const routes = [
         }
       },
       {
+        path: 'settings/collectors',
+        name: 'CollectorManagement',
+        component: () => import('@/views/settings/collector/CollectorManagement.vue'),
+        meta: { 
+          title: '采集器管理',
+          requiresAuth: true,
+          activeMenu: '/settings',
+          parent: 'Settings'
+        }
+      },
+      {
+        path: 'settings/collectors/add',
+        name: 'CollectorAdd',
+        component: () => import('@/views/settings/collector/CollectorAdd.vue'),
+        meta: { 
+          title: '添加采集器',
+          requiresAuth: true,
+          activeMenu: '/settings/collectors'
+        }
+      },
+      {
+        path: 'settings/collectors/detail/:id',
+        name: 'CollectorDetail',
+        component: () => import('@/views/settings/collector/CollectorDetail.vue'),
+        meta: { 
+          title: '采集器详情',
+          requiresAuth: true,
+          activeMenu: '/settings/collectors'
+        }
+      },
+      {
         path: 'user',
         name: 'User',
         component: () => import('@/views/user/UserList.vue'),

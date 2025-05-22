@@ -77,4 +77,13 @@ public interface DeviceService {
      * 检查设备连接
      */
     boolean checkConnection(Long id);
+    
+    /**
+     * 根据采集器ID查询设备
+     * @param collectorId 采集器ID
+     * @param includeAssigned 是否包含已分配的设备
+     * @param pageable 分页参数
+     * @return 设备分页结果
+     */
+    Page<Device> findByCollectorId(Long collectorId, boolean includeAssigned, Pageable pageable);
 } 

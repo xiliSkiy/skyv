@@ -55,7 +55,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .and()
             .authorizeRequests()
                 // 允许访问的公共路径
-                .antMatchers("/auth/**", "/test/**", "/settings/group/**", "/tasks/devices/**", "/v1/**").permitAll()
+                .antMatchers("/auth/**", "/test/**", "/settings/group/**", "/tasks/devices/**", "/v1/**", "/collectors/**", "/collector-devices/**").permitAll()
                 // Swagger相关路径
                 .antMatchers("/swagger-ui/**", "/swagger-resources/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                 // 其他所有请求需要认证

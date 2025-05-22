@@ -182,4 +182,15 @@ public class DeviceServiceImpl implements DeviceService {
         
         return true;
     }
+
+    @Override
+    public Page<Device> findByCollectorId(Long collectorId, boolean includeAssigned, Pageable pageable) {
+        // 这里需要调用采集器-设备关系表查询设备
+        // 简化实现方式：返回一个空的分页结果
+        log.info("查询采集器[{}]的设备, 包含已分配: {}", collectorId, includeAssigned);
+        
+        // 在实际实现中，这里应该根据collectorId查询设备列表
+        // 模拟返回结果
+        return Page.empty(pageable);
+    }
 } 

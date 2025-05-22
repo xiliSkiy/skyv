@@ -143,6 +143,20 @@
           </el-button>
         </div>
       </el-card>
+      
+      <!-- 采集器管理卡片 -->
+      <el-card class="settings-card" shadow="hover">
+        <div class="settings-card-content">
+          <div class="settings-icon">
+            <el-icon :size="40" color="#1e3c72"><Cpu /></el-icon>
+          </div>
+          <h5 class="settings-title">采集器管理</h5>
+          <p class="settings-description">管理系统采集器，包括添加、配置、监控采集器状态和性能。</p>
+          <el-button type="primary" @click="navigateTo('CollectorManagement')">
+            <el-icon><Tools /></el-icon> 管理设置
+          </el-button>
+        </div>
+      </el-card>
     </div>
     
     <!-- 系统信息 -->
