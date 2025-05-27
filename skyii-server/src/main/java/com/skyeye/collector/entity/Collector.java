@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@Entity(name = "DeviceCollector")
+@Entity
 @Table(name = "tb_collectors")
 public class Collector extends BaseEntity {
 

@@ -139,162 +139,6 @@ export function checkMetricKey(metricKey, id) {
   })
 }
 
-// ====================== 采集器相关接口 ======================
-
-// 获取采集器列表（分页）
-export function getCollectors(params) {
-  return request({
-    url: '/api/v1/collectors',
-    method: 'get',
-    params
-  })
-}
-
-// 获取所有采集器（不分页）
-export function getAllCollectors() {
-  return request({
-    url: '/api/v1/collectors/all',
-    method: 'get'
-  })
-}
-
-// 根据ID获取采集器
-export function getCollectorById(id) {
-  return request({
-    url: `/api/v1/collectors/${id}`,
-    method: 'get'
-  })
-}
-
-// 获取主采集器
-export function getMainCollector() {
-  return request({
-    url: '/api/v1/collectors/main',
-    method: 'get'
-  })
-}
-
-// 根据采集器类型获取采集器列表
-export function getCollectorsByType(type) {
-  return request({
-    url: `/api/v1/collectors/type/${type}`,
-    method: 'get'
-  })
-}
-
-// 根据状态获取采集器列表
-export function getCollectorsByStatus(status) {
-  return request({
-    url: `/api/v1/collectors/status/${status}`,
-    method: 'get'
-  })
-}
-
-// 创建采集器
-export function createCollector(data) {
-  return request({
-    url: '/api/v1/collectors',
-    method: 'post',
-    data
-  })
-}
-
-// 更新采集器
-export function updateCollector(id, data) {
-  return request({
-    url: `/api/v1/collectors/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-// 删除采集器
-export function deleteCollector(id) {
-  return request({
-    url: `/api/v1/collectors/${id}`,
-    method: 'delete'
-  })
-}
-
-// 测试采集器连接
-export function testCollectorConnection(params) {
-  return request({
-    url: '/api/v1/collectors/test-connection',
-    method: 'post',
-    data: params
-  })
-}
-
-// 设置为主采集器
-export function setPrimaryCollector(id) {
-  return request({
-    url: `/api/v1/collectors/${id}/set-primary`,
-    method: 'put'
-  })
-}
-
-// 更新采集器状态
-export function updateCollectorStatus(id, status) {
-  return request({
-    url: `/api/v1/collectors/${id}/status`,
-    method: 'put',
-    params: { status }
-  })
-}
-
-// 批量删除采集器
-export function batchDeleteCollectors(ids) {
-  return request({
-    url: '/api/v1/collectors/batch',
-    method: 'delete',
-    data: ids
-  })
-}
-
-// 批量更新采集器状态
-export function batchUpdateCollectorStatus(ids, status) {
-  return request({
-    url: '/api/v1/collectors/batch/status',
-    method: 'put',
-    data: ids,
-    params: { status }
-  })
-}
-
-// 批量测试采集器连接
-export function batchTestCollectorConnections(ids) {
-  return request({
-    url: '/api/v1/collectors/batch/test-connection',
-    method: 'post',
-    data: ids
-  })
-}
-
-// 获取采集区域列表
-export function getCollectionZones() {
-  return request({
-    url: '/api/v1/collectors/zones',
-    method: 'get'
-  })
-}
-
-// 检查采集器名称是否存在
-export function checkCollector(collectorName, id) {
-  return request({
-    url: '/api/v1/collectors/check-name',
-    method: 'get',
-    params: { collectorName, id }
-  })
-}
-
-// 获取采集器状态统计
-export function getCollectorStatusStatistics() {
-  return request({
-    url: '/api/v1/collectors/status-statistics',
-    method: 'get'
-  })
-}
-
 /**
  * 获取指标概览数据
  * @returns {Promise<any>}
@@ -306,16 +150,7 @@ export function getMetricsOverview() {
   })
 }
 
-/**
- * 获取采集器概览数据
- * @returns {Promise<any>}
- */
-export function getCollectorsOverview() {
-  return request({
-    url: '/api/v1/collectors/overview',
-    method: 'get'
-  })
-}
+ 
 
 /**
  * 获取指标列表
@@ -325,19 +160,6 @@ export function getCollectorsOverview() {
 export function getMetricList(params) {
   return request({
     url: '/api/v1/metrics',
-    method: 'get',
-    params
-  })
-}
-
-/**
- * 获取采集器列表
- * @param {Object} params - 查询参数
- * @returns {Promise<any>}
- */
-export function getCollectorList(params) {
-  return request({
-    url: '/api/v1/collectors',
     method: 'get',
     params
   })
@@ -439,64 +261,4 @@ export function getTemplateApplicationHistory(templateId) {
   })
 }
 
-// ====================== 指标采集历史相关接口 ======================
-
-// 获取指标采集历史列表（分页）
-export function getMetricHistory(params) {
-  return request({
-    url: '/api/v1/metric-history',
-    method: 'get',
-    params
-  })
-}
-
-// 获取指标最近采集历史
-export function getLatestMetricHistory(metricId) {
-  return request({
-    url: `/api/v1/metric-history/latest/${metricId}`,
-    method: 'get'
-  })
-}
-
-// 获取采集历史详情
-export function getMetricHistoryById(id) {
-  return request({
-    url: `/api/v1/metric-history/${id}`,
-    method: 'get'
-  })
-}
-
-// 批量删除采集历史
-export function batchDeleteMetricHistory(ids) {
-  return request({
-    url: '/api/v1/metric-history/batch',
-    method: 'delete',
-    data: ids
-  })
-}
-
-// 获取采集历史统计信息
-export function getMetricHistoryStatistics() {
-  return request({
-    url: '/api/v1/metric-history/statistics',
-    method: 'get'
-  })
-}
-
-// 手动触发指标采集
-export function triggerMetricCollection(metricId, deviceId) {
-  return request({
-    url: '/api/v1/metric-history/trigger',
-    method: 'post',
-    params: { metricId, deviceId }
-  })
-}
-
-// 清理历史数据
-export function cleanMetricHistory(days) {
-  return request({
-    url: '/api/v1/metric-history/clean',
-    method: 'delete',
-    params: { days }
-  })
-} 
+ 

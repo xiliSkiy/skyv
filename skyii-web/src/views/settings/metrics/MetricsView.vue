@@ -26,13 +26,7 @@
         <el-tab-pane label="指标模板" name="templates">
           <metric-templates ref="metricTemplates" v-if="activeTab === 'templates'" />
         </el-tab-pane>
-        <el-tab-pane label="采集器配置" name="collectors">
-          <collector-management ref="collectorManagement" v-if="activeTab === 'collectors'" />
-        </el-tab-pane>
-        <el-tab-pane label="采集历史" name="history">
-          <metric-history ref="metricHistory" :metricId="metricIdForHistory" v-if="activeTab === 'history'" />
-        </el-tab-pane>
-      </el-tabs>
+             </el-tabs>
     </el-card>
     
     <!-- 导入对话框 -->
@@ -66,17 +60,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { importMetrics } from '@/api/metrics'
 import MetricsManagement from './MetricsManagement.vue'
 import MetricTemplates from './MetricTemplates.vue'
-import CollectorManagement from './CollectorManagement.vue'
-import MetricHistory from './MetricHistory.vue'
 import bus from '@/utils/eventBus'
 
 export default {
   name: 'MetricsView',
   components: {
     MetricsManagement,
-    MetricTemplates,
-    CollectorManagement,
-    MetricHistory
+    MetricTemplates
   },
   setup() {
     const activeTab = ref('metrics')
@@ -87,8 +77,6 @@ export default {
     
     const metricsManagement = ref(null)
     const metricTemplates = ref(null)
-    const collectorManagement = ref(null)
-    const metricHistory = ref(null)
     
     // 处理标签页切换
     const handleTabClick = () => {
@@ -100,12 +88,6 @@ export default {
             break
           case 'templates':
             metricTemplates.value?.fetchData()
-            break
-          case 'collectors':
-            collectorManagement.value?.fetchData()
-            break
-          case 'history':
-            metricHistory.value?.fetchData()
             break
         }
       })
@@ -135,12 +117,6 @@ export default {
         case 'templates':
           metricTemplates.value?.fetchData()
           break
-        case 'collectors':
-          collectorManagement.value?.fetchData()
-          break
-        case 'history':
-          metricHistory.value?.fetchData()
-          break
       }
       ElMessage.success('刷新成功')
     }
@@ -158,9 +134,6 @@ export default {
             break
           case 'templates':
             metricTemplates.value?.handleExport()
-            break
-          case 'collectors':
-            collectorManagement.value?.handleExport()
             break
           default:
             ElMessage.warning('当前页面不支持导出')
@@ -251,9 +224,7 @@ export default {
       handleFileChange,
       handleImport,
       metricsManagement,
-      metricTemplates,
-      collectorManagement,
-      metricHistory
+      metricTemplates
     }
   }
 }
