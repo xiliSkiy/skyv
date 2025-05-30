@@ -1,10 +1,12 @@
 package com.skyeye.scheduler.entity;
 
+import com.skyeye.collector.entity.Collector;
 import com.skyeye.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -47,7 +49,7 @@ public class Task extends BaseEntity {
     private String taskParams;
 
     /**
-     * 状态：0-禁用，1-启用
+     * 任务状态：1-待执行，2-已调度，3-执行中，4-已完成，5-已失败，6-已暂停
      */
     @Column(name = "status", nullable = false)
     private Integer status = 1;
@@ -59,17 +61,90 @@ public class Task extends BaseEntity {
     private Long createdBy;
     
     /**
-     * 任务优先级：1-低，2-中，3-高
+     * 优先级：1-低，2-中，3-高
      */
     @Column(name = "priority")
     private Integer priority = 2;
     
     /**
-     * 任务标签（逗号分隔）
+     * 标签（逗号分隔）
      */
     @Column(name = "tags", length = 255)
     private String tags;
     
+    /**
+     * 计划开始时间
+     */
+    @Column(name = "planned_start_time")
+    private LocalDateTime plannedStartTime;
+    
+    /**
+     * 计划结束时间
+     */
+    @Column(name = "planned_end_time")
+    private LocalDateTime plannedEndTime;
+    
+    /**
+     * 实际开始时间
+     */
+    @Column(name = "actual_start_time")
+    private LocalDateTime actualStartTime;
+    
+    /**
+     * 实际结束时间
+     */
+    @Column(name = "actual_end_time")
+    private LocalDateTime actualEndTime;
+    
+    /**
+     * 执行耗时(毫秒)
+     */
+    @Column(name = "execution_time")
+    private Long executionTime;
+    
+    /**
+     * 错误信息
+     */
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+    
+    /**
+     * 执行结果
+     */
+    @Column(name = "result", columnDefinition = "TEXT")
+    private String result;
+    
+    /**
+     * 是否是采集任务
+     */
+    @Column(name = "is_collection_task")
+    private Boolean isCollectionTask = false;
+    
+    /**
+     * 采集器ID
+     */
+    @Column(name = "collector_id")
+    private Long collectorId;
+    
+    /**
+     * 采集类型：SSH, SNMP, HTTP等
+     */
+    @Column(name = "collect_type")
+    private String collectType;
+    
+    /**
+     * 采集参数(JSON格式)
+     */
+    @Column(name = "collect_params", columnDefinition = "TEXT")
+    private String collectParams;
+    
+    /**
+     * 采集器关联
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "collector_id", insertable = false, updatable = false)
+    private Collector collector;
+
     /**
      * 任务设备关联（一对多）
      */

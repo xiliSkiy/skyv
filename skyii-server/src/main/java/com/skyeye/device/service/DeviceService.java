@@ -34,6 +34,13 @@ public interface DeviceService {
     Optional<Device> findById(Long id);
     
     /**
+     * 根据ID列表查询设备
+     * @param ids 设备ID列表
+     * @return 设备列表
+     */
+    List<Device> findAllById(List<Long> ids);
+    
+    /**
      * 根据编码查询设备
      */
     Optional<Device> findByCode(String code);

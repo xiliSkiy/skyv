@@ -91,6 +91,11 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override
+    public List<Device> findAllById(List<Long> ids) {
+        return deviceRepository.findAllById(ids);
+    }
+
+    @Override
     public Optional<Device> findByCode(String code) {
         return deviceRepository.findByCode(code);
     }

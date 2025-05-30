@@ -3,11 +3,14 @@ package com.skyeye.collector.service;
 import com.skyeye.collector.dto.CollectorDTO;
 import com.skyeye.collector.dto.CollectorMetricsDTO;
 import com.skyeye.collector.entity.Collector;
+import com.skyeye.scheduler.dto.CollectorRegisterDTO;
+import com.skyeye.scheduler.dto.HeartbeatDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 采集器服务接口
@@ -111,4 +114,59 @@ public interface CollectorService {
      * @return 测试结果
      */
     Map<String, Object> testConnectionWithParams(Map<String, Object> params);
+
+    /**
+     * 注册采集器
+     * @param registerDTO 注册信息
+     * @return 采集器信息
+     */
+    Collector registerCollector(CollectorRegisterDTO registerDTO);
+
+    /**
+     * 更新采集器心跳
+     * @param heartbeatDTO 心跳信息
+     * @return 是否更新成功
+     */
+    boolean updateHeartbeat(HeartbeatDTO heartbeatDTO);
+
+    /**
+     * 根据ID查询采集器
+     * @param id 采集器ID
+     * @return 采集器信息
+     */
+    Optional<Collector> findById(Long id);
+
+    /**
+     * 根据编码查询采集器
+     * @param collectorCode 采集器编码
+     * @return 采集器信息
+     */
+    Optional<Collector> findByCode(String collectorCode);
+
+    /**
+     * 查询所有采集器
+     * @return 采集器列表
+     */
+    List<Collector> findAll();
+
+    /**
+     * 根据状态查询采集器
+     * @param status 状态
+     * @return 采集器列表
+     */
+    List<Collector> findByStatus(String status);
+
+    /**
+     * 更新采集器状态
+     * @param id 采集器ID
+     * @param status 状态
+     * @return 是否更新成功
+     */
+    boolean updateStatus(Long id, String status);
+
+    /**
+     * 检查超时采集器
+     * 超过指定时间未心跳的采集器将被标记为离线
+     */
+    void checkTimeoutCollectors();
 } 

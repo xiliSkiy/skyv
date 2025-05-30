@@ -90,7 +90,7 @@ public class AuthController {
                 user.getUsername(),
                 user.getEmail(),
                 roles
-        ), "登录成功");
+        ),"登录成功");
     }
 
     /**
@@ -124,7 +124,7 @@ public class AuthController {
         userInfo.setStatus(user.getStatus());
         userInfo.setLastLoginTime(user.getLastLoginTime());
 
-        return ApiResponse.success(userInfo, "获取用户信息成功");
+        return ApiResponse.success(userInfo,"获取用户信息成功");
     }
 
     /**
@@ -161,6 +161,6 @@ public class AuthController {
 
         userRepository.save(user);
 
-        return ApiResponse.success(null, "注册成功");
+        return ApiResponse.success(null,"注册成功");
     }
 } 

@@ -6,6 +6,9 @@ import com.skyeye.collector.entity.Collector;
 import com.skyeye.collector.repository.DeviceCollectorRepository;
 import com.skyeye.collector.service.CollectorService;
 import com.skyeye.common.exception.BusinessException;
+import com.skyeye.scheduler.dto.CollectorRegisterDTO;
+import com.skyeye.scheduler.dto.HeartbeatDTO;
+import com.skyeye.scheduler.repository.CollectorRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +36,12 @@ import java.util.stream.Collectors;
 public class CollectorServiceImpl implements CollectorService {
 
     @Autowired
-    private DeviceCollectorRepository collectorRepository;
+    private DeviceCollectorRepository deviceCollectorRepository;
+    @Autowired
+    private CollectorRepository collectorRepository;
 
+    @Value("${skyeye.collector.heartbeat.timeout:60}")
+    private int heartbeatTimeout;
     @Value("${jwt.secret:defaultSecretKey}")
     private String jwtSecret;
 
@@ -42,7 +49,7 @@ public class CollectorServiceImpl implements CollectorService {
     @Transactional
     public CollectorDTO createCollector(CollectorDTO collectorDTO) {
         // 检查采集器名称是否已存在
-        if (collectorRepository.findByCollectorName(collectorDTO.getCollectorName()).isPresent()) {
+        if (deviceCollectorRepository.findByCollectorName(collectorDTO.getCollectorName()).isPresent()) {
             throw new BusinessException("采集器名称已存在");
         }
 
@@ -56,7 +63,7 @@ public class CollectorServiceImpl implements CollectorService {
         // 生成API密钥
         collector.setApiKey(UUID.randomUUID().toString().replace("-", ""));
         
-        Collector savedCollector = collectorRepository.save(collector);
+        Collector savedCollector = deviceCollectorRepository.save(collector);
         CollectorDTO resultDTO = new CollectorDTO();
         BeanUtils.copyProperties(savedCollector, resultDTO);
         
@@ -66,19 +73,19 @@ public class CollectorServiceImpl implements CollectorService {
     @Override
     @Transactional
     public CollectorDTO updateCollector(Long id, CollectorDTO collectorDTO) {
-        Collector collector = collectorRepository.findById(id)
+        Collector collector = deviceCollectorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("采集器不存在"));
         
         // 检查名称是否冲突
         if (!collector.getCollectorName().equals(collectorDTO.getCollectorName()) &&
-                collectorRepository.findByCollectorName(collectorDTO.getCollectorName()).isPresent()) {
+                deviceCollectorRepository.findByCollectorName(collectorDTO.getCollectorName()).isPresent()) {
             throw new BusinessException("采集器名称已存在");
         }
         
         BeanUtils.copyProperties(collectorDTO, collector);
         collector.setId(id); // 确保ID不变
         
-        Collector updatedCollector = collectorRepository.save(collector);
+        Collector updatedCollector = deviceCollectorRepository.save(collector);
         CollectorDTO resultDTO = new CollectorDTO();
         BeanUtils.copyProperties(updatedCollector, resultDTO);
         
@@ -88,17 +95,17 @@ public class CollectorServiceImpl implements CollectorService {
     @Override
     @Transactional
     public void deleteCollector(Long id) {
-        Collector collector = collectorRepository.findById(id)
+        Collector collector = deviceCollectorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("采集器不存在"));
         
         // 执行逻辑删除而不是物理删除
         collector.setDeletedAt(LocalDateTime.now());
-        collectorRepository.save(collector);
+        deviceCollectorRepository.save(collector);
     }
 
     @Override
     public CollectorDTO getCollectorById(Long id) {
-        Collector collector = collectorRepository.findById(id)
+        Collector collector = deviceCollectorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("采集器不存在"));
         
         CollectorDTO resultDTO = new CollectorDTO();
@@ -111,14 +118,14 @@ public class CollectorServiceImpl implements CollectorService {
     public Page<CollectorDTO> findCollectors(Map<String, Object> params, Pageable pageable) {
         log.info("查询采集器列表, 参数: {}, 分页: {}", params, pageable);
         // 直接获取所有数据，先不过滤，看能否找到数据
-        List<Collector> allCollectors = collectorRepository.findAll();
+        List<Collector> allCollectors = deviceCollectorRepository.findAll();
         log.info("数据库中总记录数: {}", allCollectors.size());
         for (Collector collector : allCollectors) {
             log.info("采集器记录: id={}, name={}, deletedAt={}, status={}",
             collector.getId(), collector.getCollectorName(), collector.getDeletedAt(), collector.getStatus());
         }
         // 使用Specification查询
-        Page<Collector> collectorsPage = collectorRepository.findAll((root, query, cb) -> {
+        Page<Collector> collectorsPage = deviceCollectorRepository.findAll((root, query, cb) -> {
             List<javax.persistence.criteria.Predicate> predicates = new ArrayList<>();
             // 暂时注释掉删除条件，检查是否有数据
             // predicates.add(cb.isNull(root.get("deletedAt")));
@@ -159,7 +166,7 @@ public class CollectorServiceImpl implements CollectorService {
     @Override
     public CollectorMetricsDTO getCollectorMetrics(Long id) {
         // 此处应调用采集器API获取实时指标，这里为模拟数据
-        Collector collector = collectorRepository.findById(id)
+        Collector collector = deviceCollectorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("采集器不存在"));
         
         CollectorMetricsDTO metrics = new CollectorMetricsDTO();
@@ -183,7 +190,7 @@ public class CollectorServiceImpl implements CollectorService {
 
     @Override
     public String generateRegistrationToken(Long id, Integer expireHours) {
-        Collector collector = collectorRepository.findById(id)
+        Collector collector = deviceCollectorRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("采集器不存在"));
         
         Date now = new Date();
@@ -211,7 +218,7 @@ public class CollectorServiceImpl implements CollectorService {
                     .getSubject();
             
             Long id = Long.parseLong(collectorId);
-            Collector collector = collectorRepository.findById(id)
+            Collector collector = deviceCollectorRepository.findById(id)
                     .orElseThrow(() -> new BusinessException("采集器不存在"));
             
             // 更新采集器信息
@@ -227,7 +234,7 @@ public class CollectorServiceImpl implements CollectorService {
             collector.setStatusInfo("正常运行");
             collector.setLastHeartbeat(LocalDateTime.now());
             
-            Collector updatedCollector = collectorRepository.save(collector);
+            Collector updatedCollector = deviceCollectorRepository.save(collector);
             CollectorDTO resultDTO = new CollectorDTO();
             BeanUtils.copyProperties(updatedCollector, resultDTO);
             
@@ -242,14 +249,14 @@ public class CollectorServiceImpl implements CollectorService {
     public boolean restartCollector(Long id) {
         // 这里应该通过采集器API发送重启命令，这里为模拟操作
         try {
-            Collector collector = collectorRepository.findById(id)
+            Collector collector = deviceCollectorRepository.findById(id)
                     .orElseThrow(() -> new BusinessException("采集器不存在"));
             
             log.info("发送重启命令到采集器: {}", collector.getCollectorName());
             
             // 假设我们更新了状态来反映重启操作
             collector.setStatusInfo("正在重启...");
-            collectorRepository.save(collector);
+            deviceCollectorRepository.save(collector);
             
             return true;
         } catch (Exception e) {
@@ -263,16 +270,16 @@ public class CollectorServiceImpl implements CollectorService {
         // 统计各状态的采集器数量
         Map<String, Long> counts = new HashMap<>();
         
-        long totalCount = collectorRepository.count();
+        long totalCount = deviceCollectorRepository.count();
         counts.put("total", totalCount);
         
-        long onlineCount = collectorRepository.findByStatus(1).size(); // 在线
+        long onlineCount = deviceCollectorRepository.findByStatus(1).size(); // 在线
         counts.put("online", onlineCount);
         
-        long offlineCount = collectorRepository.findByStatus(0).size(); // 离线
+        long offlineCount = deviceCollectorRepository.findByStatus(0).size(); // 离线
         counts.put("offline", offlineCount);
         
-        long warningCount = collectorRepository.findByStatus(2).size(); // 警告
+        long warningCount = deviceCollectorRepository.findByStatus(2).size(); // 警告
         counts.put("warning", warningCount);
         
         return counts;
@@ -280,7 +287,7 @@ public class CollectorServiceImpl implements CollectorService {
 
     @Override
     public List<CollectorDTO> getAllCollectors() {
-        List<Collector> collectors = collectorRepository.findAll();
+        List<Collector> collectors = deviceCollectorRepository.findAll();
         
         return collectors.stream()
                 .map(collector -> {
@@ -294,7 +301,7 @@ public class CollectorServiceImpl implements CollectorService {
     @Override
     public List<String> getNetworkZones() {
         // 查询所有采集器的网络区域并去重
-        List<String> zones = collectorRepository.findAll().stream()
+        List<String> zones = deviceCollectorRepository.findAll().stream()
                 .map(Collector::getNetworkZone)
                 .filter(Objects::nonNull)
                 .distinct()
@@ -311,7 +318,7 @@ public class CollectorServiceImpl implements CollectorService {
         
         try {
             // 获取采集器信息
-            Collector collector = collectorRepository.findById(id)
+            Collector collector = deviceCollectorRepository.findById(id)
                     .orElseThrow(() -> new BusinessException("采集器不存在"));
             
             // 测试TCP连接（简单的端口连通性测试）
@@ -329,7 +336,7 @@ public class CollectorServiceImpl implements CollectorService {
                 collector.setStatus(1); // 在线
                 collector.setStatusInfo("正常运行");
                 collector.setLastHeartbeat(LocalDateTime.now());
-                collectorRepository.save(collector);
+                deviceCollectorRepository.save(collector);
             } else {
                 result.put("message", "连接失败");
                 result.put("details", String.format("无法连接到 %s:%d", collector.getHost(), collector.getPort()));
@@ -337,7 +344,7 @@ public class CollectorServiceImpl implements CollectorService {
                 // 更新采集器状态
                 collector.setStatus(0); // 离线
                 collector.setStatusInfo("连接失败");
-                collectorRepository.save(collector);
+                deviceCollectorRepository.save(collector);
             }
         } catch (Exception e) {
             log.error("测试采集器连接失败: {}", e.getMessage(), e);
@@ -419,6 +426,136 @@ public class CollectorServiceImpl implements CollectorService {
                     log.warn("关闭socket失败", e);
                 }
             }
+        }
+    }
+
+    @Override
+    @Transactional
+    public Collector registerCollector(CollectorRegisterDTO registerDTO) {
+        // 由于我们现在使用collectorName作为查询条件，但是DTO中有name属性
+        Optional<Collector> existingCollector = collectorRepository.findByCollectorName(registerDTO.getName());
+
+        Collector collector;
+        if (existingCollector.isPresent()) {
+            collector = existingCollector.get();
+            // 更新基本属性，但保留ID、创建时间等
+            collector.setCollectorName(registerDTO.getName());
+            collector.setHost(registerDTO.getIpAddress());
+            collector.setPort(registerDTO.getPort());
+            collector.setVersion(registerDTO.getVersion());
+            collector.setStatus(1); // ONLINE状态
+            collector.setLastHeartbeat(LocalDateTime.now());
+        } else {
+            collector = new Collector();
+            collector.setCollectorName(registerDTO.getName());
+            collector.setCollectorType("STANDARD"); // 设置默认类型
+            collector.setHost(registerDTO.getIpAddress());
+            collector.setPort(registerDTO.getPort());
+            collector.setVersion(registerDTO.getVersion());
+            collector.setStatus(1); // ONLINE状态
+            collector.setLastHeartbeat(LocalDateTime.now());
+        }
+
+        return collectorRepository.save(collector);
+    }
+
+    @Override
+    @Transactional
+    public boolean updateHeartbeat(HeartbeatDTO heartbeatDTO) {
+        // 由于HeartbeatDTO中使用collectorCode属性，但实际上我们需要使用它作为collectorName查询
+        Optional<Collector> optionalCollector = collectorRepository.findByCollectorName(heartbeatDTO.getCollectorCode());
+        if (!optionalCollector.isPresent()) {
+            log.warn("Heartbeat received from unknown collector: {}", heartbeatDTO.getCollectorCode());
+            return false;
+        }
+
+        Collector collector = optionalCollector.get();
+
+        // 更新心跳时间和状态
+        collector.setLastHeartbeat(LocalDateTime.now());
+        collector.setStatus(1); // 在线状态为1
+
+        // 更新其他可能变化的信息
+        if (heartbeatDTO.getVersion() != null) {
+            collector.setVersion(heartbeatDTO.getVersion());
+        }
+
+        collectorRepository.save(collector);
+        return true;
+    }
+
+    @Override
+    public Optional<Collector> findById(Long id) {
+        return collectorRepository.findById(id);
+    }
+
+    @Override
+    public Optional<Collector> findByCode(String collectorCode) {
+        return collectorRepository.findByCollectorName(collectorCode);
+    }
+
+    @Override
+    public List<Collector> findAll() {
+        return collectorRepository.findAll();
+    }
+
+    @Override
+    public List<Collector> findByStatus(String status) {
+        // 转换状态字符串为对应的整数值
+        Integer statusCode = convertStatusToCode(status);
+        return collectorRepository.findByStatus(statusCode);
+    }
+
+    @Override
+    @Transactional
+    public boolean updateStatus(Long id, String status) {
+        Optional<Collector> optionalCollector = collectorRepository.findById(id);
+        if (!optionalCollector.isPresent()) {
+            return false;
+        }
+
+        // 转换状态字符串为对应的整数值
+        Integer statusCode = convertStatusToCode(status);
+        
+        Collector collector = optionalCollector.get();
+        collector.setStatus(statusCode);
+        collectorRepository.save(collector);
+        return true;
+    }
+
+    /**
+     * 将状态字符串转换为整数状态码
+     * @param status 状态字符串
+     * @return 状态码
+     */
+    private Integer convertStatusToCode(String status) {
+        if (status == null) {
+            return null;
+        }
+        
+        switch (status.toUpperCase()) {
+            case "ONLINE":
+                return 1; // 正常
+            case "OFFLINE":
+                return 0; // 异常
+            case "WARNING":
+                return 2; // 警告
+            default:
+                return 0; // 默认为异常
+        }
+    }
+
+    @Override
+    @Transactional
+    public void checkTimeoutCollectors() {
+        LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(heartbeatTimeout);
+        // 注意：这里1表示"ONLINE"状态
+        List<Collector> timeoutCollectors = collectorRepository.findTimeoutCollectors(timeoutThreshold, 1);
+
+        for (Collector collector : timeoutCollectors) {
+            log.info("Collector timeout detected: {} ({})", collector.getCollectorName(), collector.getId());
+            collector.setStatus(0); // 0表示"OFFLINE"状态
+            collectorRepository.save(collector);
         }
     }
 } 

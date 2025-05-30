@@ -5,8 +5,10 @@ import com.skyeye.device.service.DeviceService;
 import com.skyeye.scheduler.dto.*;
 import com.skyeye.scheduler.entity.*;
 import com.skyeye.scheduler.repository.*;
+import com.skyeye.scheduler.service.TaskScheduleTriggerService;
 import com.skyeye.scheduler.service.TaskService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +42,7 @@ public class TaskServiceImpl implements TaskService {
     private final MetricTemplateRepository metricTemplateRepository;
     private final TaskDraftRepository taskDraftRepository;
     private final DeviceService deviceService;
+    private final TaskScheduleTriggerService taskScheduleTriggerService;
 
     @Override
     public Page<TaskDTO> findTasksByPage(TaskQueryDTO queryDTO) {
@@ -763,6 +766,232 @@ public class TaskServiceImpl implements TaskService {
             case 2: return "medium";
             case 1: return "low";
             default: return "medium";
+        }
+    }
+
+    @Override
+    public Optional<Task> findById(Long id) {
+        return taskRepository.findById(id);
+    }
+    
+    @Override
+    public Page<Task> findAll(Pageable pageable) {
+        return taskRepository.findAll(pageable);
+    }
+    
+    @Override
+    public List<TaskDevice> getTaskDevices(Long taskId) {
+        return taskDeviceRepository.findByTaskId(taskId);
+    }
+    
+    @Override
+    public Task updateTask(Task task) {
+        return taskRepository.save(task);
+    }
+    
+    @Override
+    public Task createTask(Task task) {
+        return taskRepository.save(task);
+    }
+    
+    @Override
+    public TaskBatch createCollectionTask(Long taskId, Long collectorId, List<Long> deviceIds, List<Long> metricIds) {
+        // 创建任务批次（示例实现）
+        TaskBatch batch = new TaskBatch();
+        batch.setTaskId(taskId);
+        batch.setCollectorId(collectorId);
+        batch.setBatchName("Batch-" + System.currentTimeMillis());
+        batch.setStatus("CREATED");
+        batch.setCreatedAt(LocalDateTime.now());
+        
+        // 实际项目中应该保存并返回
+        return batch;
+    }
+    
+    @Override
+    public boolean submitCollectionTask(Long batchId) {
+        // 实际项目中的提交逻辑
+        return true;
+    }
+    
+    @Override
+    public boolean cancelCollectionTask(Long batchId) {
+        // 实际项目中的取消逻辑
+        return true;
+    }
+    
+    @Override
+    public Page<TaskBatch> findBatches(Long taskId, Pageable pageable) {
+        // 实际项目中的查询逻辑
+        return Page.empty(pageable);
+    }
+    
+    @Override
+    public Page<Task> findTasksByDevice(Long deviceId, Pageable pageable) {
+        // 获取设备关联的任务ID
+        List<Long> taskIds = taskDeviceRepository.findByDeviceId(deviceId).stream()
+                .map(TaskDevice::getTaskId)
+                .collect(Collectors.toList());
+        
+        if (taskIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        
+        // 构建查询条件
+        Specification<Task> spec = (root, query, cb) -> root.get("id").in(taskIds);
+        return taskRepository.findAll(spec, pageable);
+    }
+
+    @Override
+    public TaskScheduleTriggerDTO createTaskTrigger(Long taskId, TaskScheduleTriggerDTO triggerDTO) {
+        triggerDTO.setTaskId(taskId);
+        TaskScheduleTrigger trigger = taskScheduleTriggerService.createTrigger(triggerDTO);
+        
+        TaskScheduleTriggerDTO resultDTO = new TaskScheduleTriggerDTO();
+        BeanUtils.copyProperties(trigger, resultDTO);
+        return resultDTO;
+    }
+    
+    @Override
+    public TaskScheduleTriggerDTO updateTaskTrigger(Long triggerId, TaskScheduleTriggerDTO triggerDTO) {
+        TaskScheduleTrigger trigger = taskScheduleTriggerService.updateTrigger(triggerId, triggerDTO);
+        
+        TaskScheduleTriggerDTO resultDTO = new TaskScheduleTriggerDTO();
+        BeanUtils.copyProperties(trigger, resultDTO);
+        return resultDTO;
+    }
+    
+    @Override
+    public boolean updateTriggerStatus(Long triggerId, boolean enabled) {
+        return taskScheduleTriggerService.updateTriggerStatus(triggerId, enabled);
+    }
+    
+    @Override
+    public boolean deleteTaskTrigger(Long triggerId) {
+        taskScheduleTriggerService.deleteTrigger(triggerId);
+        return true;
+    }
+    
+    @Override
+    public List<TaskScheduleTriggerDTO> getTaskTriggers(Long taskId) {
+        List<TaskScheduleTrigger> triggers = taskScheduleTriggerService.findByTaskId(taskId);
+        
+        return triggers.stream()
+                .map(trigger -> {
+                    TaskScheduleTriggerDTO dto = new TaskScheduleTriggerDTO();
+                    BeanUtils.copyProperties(trigger, dto);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Long> getTaskDeviceIds(Long taskId) {
+        List<TaskDevice> taskDevices = taskDeviceRepository.findByTaskId(taskId);
+        return taskDevices.stream()
+                .map(TaskDevice::getDeviceId)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<Long> getTaskMetricIds(Long taskId) {
+        List<TaskMetric> taskMetrics = taskMetricRepository.findByTaskId(taskId);
+        return taskMetrics.stream()
+                .map(TaskMetric::getMetricId)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<TaskDevice> addDevices(Long taskId, List<Long> deviceIds) {
+        // 查询任务是否存在
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 查询设备信息
+        List<Device> devices = deviceService.findAllById(deviceIds);
+        
+        // 构建任务设备关联
+        List<TaskDevice> taskDevices = devices.stream()
+                .map(device -> {
+                    TaskDevice taskDevice = new TaskDevice();
+                    taskDevice.setTaskId(taskId);
+                    taskDevice.setDeviceId(device.getId());
+                    taskDevice.setDeviceName(device.getName());
+                    taskDevice.setDeviceType(device.getType());
+                    return taskDevice;
+                })
+                .collect(Collectors.toList());
+        
+        // 保存关联
+        return taskDeviceRepository.saveAll(taskDevices);
+    }
+    
+    @Override
+    public boolean removeDevice(Long taskId, Long deviceId) {
+        // 查询任务是否存在
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 删除关联
+        TaskDevice taskDevice = taskDeviceRepository.findByTaskIdAndDeviceId(taskId, deviceId);
+        if (taskDevice != null) {
+            taskDeviceRepository.delete(taskDevice);
+        }
+        return true;
+    }
+    
+    @Override
+    public boolean resumeTask(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 只有已暂停的任务可以恢复
+        if (task.getStatus() != 3) {
+            throw new RuntimeException("当前任务状态不允许恢复");
+        }
+        
+        task.setStatus(1); // 运行中
+        taskRepository.save(task);
+        
+        // 更新当前执行记录
+        taskExecutionRepository.findTopByTaskIdOrderByStartTimeDesc(id)
+                .ifPresent(execution -> {
+                    if (execution.getStatus() == 3) {
+                        execution.setStatus(1); // 运行中
+                        taskExecutionRepository.save(execution);
+                    }
+                });
+        
+        return true;
+    }
+    
+    @Override
+    public boolean triggerTask(Long taskId, Long triggerId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("任务不存在"));
+        
+        // 检查任务状态是否允许触发
+        if (task.getStatus() != 2 && task.getStatus() != 3) {
+            throw new RuntimeException("当前任务状态不允许触发");
+        }
+        
+        // 如果提供了触发器ID，则使用特定触发器
+        if (triggerId != null) {
+            return taskScheduleTriggerService.fireTrigger(triggerId);
+        } else {
+            // 直接触发任务
+            task.setStatus(1); // 运行中
+            taskRepository.save(task);
+            
+            // 记录任务执行记录
+            TaskExecution execution = new TaskExecution();
+            execution.setTaskId(taskId);
+            execution.setExecutionId(UUID.randomUUID().toString());
+            execution.setStartTime(LocalDateTime.now());
+            execution.setStatus(1); // 运行中
+            taskExecutionRepository.save(execution);
+            
+            return true;
         }
     }
 } 

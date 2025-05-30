@@ -11,9 +11,13 @@ import javax.persistence.*;
  */
 @Data
 @Entity
-@Table(name = "tb_task_metrics")
+@Table(name = "tb_task_metric")
 @EqualsAndHashCode(callSuper = true)
 public class TaskMetric extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     /**
      * 任务ID
@@ -27,6 +31,12 @@ public class TaskMetric extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "task_id", insertable = false, updatable = false)
     private Task task;
+
+    /**
+     * 指标ID
+     */
+    @Column(name = "metric_id")
+    private Long metricId;
 
     /**
      * 指标名称

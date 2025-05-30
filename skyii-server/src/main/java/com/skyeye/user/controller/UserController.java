@@ -5,8 +5,9 @@ import com.skyeye.auth.entity.User;
 import com.skyeye.auth.repository.RoleRepository;
 import com.skyeye.auth.repository.UserRepository;
 import com.skyeye.common.exception.BusinessException;
-import com.skyeye.common.response.ApiResponse;
+import com.skyeye.common.response.Result;
 import com.skyeye.common.response.PageMeta;
+import com.skyeye.common.response.Result;
 import com.skyeye.user.dto.UserCreateRequest;
 import com.skyeye.user.dto.UserDTO;
 import com.skyeye.user.dto.UserQueryRequest;
@@ -56,7 +57,7 @@ public class UserController {
      */
     @GetMapping("/list")
     @ApiOperation("获取用户列表")
-    public ApiResponse<List<UserDTO>> getUserList(UserQueryRequest queryRequest) {
+    public Result<List<UserDTO>> getUserList(UserQueryRequest queryRequest) {
         // 构建查询条件
         Specification<User> specification = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -117,7 +118,7 @@ public class UserController {
         pageMeta.setTotal(userPage.getTotalElements());
         pageMeta.setTotalPages(userPage.getTotalPages());
         
-        return ApiResponse.success(userDTOList, "获取用户列表成功", pageMeta);
+        return Result.success(userDTOList, "获取用户列表成功", pageMeta);
     }
     
     /**
@@ -125,11 +126,11 @@ public class UserController {
      */
     @GetMapping("/{id}")
     @ApiOperation("获取用户详情")
-    public ApiResponse<UserDTO> getUserDetail(@PathVariable Long id) {
+    public Result<UserDTO> getUserDetail(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         
-        return ApiResponse.success(convertToDTO(user), "获取用户详情成功");
+        return Result.success(convertToDTO(user), "获取用户详情成功");
     }
     
     /**
@@ -137,7 +138,7 @@ public class UserController {
      */
     @PostMapping
     @ApiOperation("创建用户")
-    public ApiResponse<UserDTO> createUser(@Valid @RequestBody UserCreateRequest createRequest) {
+    public Result<UserDTO> createUser(@Valid @RequestBody UserCreateRequest createRequest) {
         // 检查用户名是否已存在
         if (userRepository.existsByUsername(createRequest.getUsername())) {
             throw new BusinessException("用户名已存在");
@@ -175,7 +176,7 @@ public class UserController {
         // 保存用户
         user = userRepository.save(user);
         
-        return ApiResponse.success(convertToDTO(user), "创建用户成功");
+        return Result.success(convertToDTO(user), "创建用户成功");
     }
     
     /**
@@ -183,7 +184,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @ApiOperation("更新用户")
-    public ApiResponse<UserDTO> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest updateRequest) {
+    public Result<UserDTO> updateUser(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest updateRequest) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         
@@ -219,7 +220,7 @@ public class UserController {
         // 保存用户
         user = userRepository.save(user);
         
-        return ApiResponse.success(convertToDTO(user), "更新用户成功");
+        return Result.success(convertToDTO(user), "更新用户成功");
     }
     
     /**
@@ -227,7 +228,7 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @ApiOperation("删除用户")
-    public ApiResponse<Void> deleteUser(@PathVariable Long id) {
+    public Result<Void> deleteUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         
@@ -238,7 +239,7 @@ public class UserController {
         
         userRepository.delete(user);
         
-        return ApiResponse.success(null, "删除用户成功");
+        return Result.success(null, "删除用户成功");
     }
     
     /**
@@ -246,7 +247,7 @@ public class UserController {
      */
     @DeleteMapping("/batch")
     @ApiOperation("批量删除用户")
-    public ApiResponse<Void> batchDeleteUsers(@RequestBody List<Long> ids) {
+    public Result<Void> batchDeleteUsers(@RequestBody List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException("请选择要删除的用户");
         }
@@ -265,7 +266,7 @@ public class UserController {
         
         userRepository.deleteAll(users);
         
-        return ApiResponse.success(null, "批量删除用户成功");
+        return Result.success(null, "批量删除用户成功");
     }
     
     /**
@@ -273,7 +274,7 @@ public class UserController {
      */
     @PutMapping("/{id}/reset-password")
     @ApiOperation("重置用户密码")
-    public ApiResponse<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
+    public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         
@@ -281,7 +282,7 @@ public class UserController {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         
-        return ApiResponse.success(null, "重置密码成功");
+        return Result.success(null, "重置密码成功");
     }
     
     /**
@@ -289,9 +290,9 @@ public class UserController {
      */
     @GetMapping("/roles")
     @ApiOperation("获取所有角色")
-    public ApiResponse<List<Role>> getAllRoles() {
+    public Result<List<Role>> getAllRoles() {
         List<Role> roles = roleRepository.findAll();
-        return ApiResponse.success(roles, "获取角色列表成功");
+        return Result.success(roles, "获取角色列表成功");
     }
     
     /**
@@ -299,7 +300,7 @@ public class UserController {
      */
     @GetMapping("/statistics")
     @ApiOperation("获取用户统计信息")
-    public ApiResponse<Map<String, Object>> getUserStatistics() {
+    public Result<Map<String, Object>> getUserStatistics() {
         Map<String, Object> statistics = new HashMap<>();
         
         // 总用户数
@@ -342,7 +343,7 @@ public class UserController {
         }
         statistics.put("roleStats", roleStats);
         
-        return ApiResponse.success(statistics, "获取用户统计信息成功");
+        return Result.success(statistics, "获取用户统计信息成功");
     }
     
     /**
@@ -350,7 +351,7 @@ public class UserController {
      */
     @GetMapping("/online")
     @ApiOperation("获取在线用户列表")
-    public ApiResponse<List<UserDTO>> getOnlineUsers() {
+    public Result<List<UserDTO>> getOnlineUsers() {
         // 24小时内登录过的算在线
         LocalDateTime onlineThreshold = LocalDateTime.now().minusHours(24);
         List<User> onlineUsers = userRepository.findByLastLoginTimeAfter(onlineThreshold);
@@ -359,7 +360,7 @@ public class UserController {
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
                 
-        return ApiResponse.success(userDTOList, "获取在线用户列表成功");
+        return Result.success(userDTOList, "获取在线用户列表成功");
     }
     
     /**
