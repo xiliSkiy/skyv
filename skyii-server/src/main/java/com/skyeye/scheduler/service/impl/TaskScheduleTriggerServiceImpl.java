@@ -216,7 +216,7 @@ public class TaskScheduleTriggerServiceImpl implements TaskScheduleTriggerServic
         // 更新触发器状态
         trigger.setLastFireTime(LocalDateTime.now());
         trigger.setFiredCount(trigger.getFiredCount() + 1);
-        trigger.setNextFireTime(calculateNextFireTime(trigger));
+            trigger.setNextFireTime(calculateNextFireTime(trigger));
         triggerRepository.save(trigger);
         
         // 获取任务信息
@@ -262,13 +262,13 @@ public class TaskScheduleTriggerServiceImpl implements TaskScheduleTriggerServic
                             collectionTask.setRetryCount(3);  // 默认重试3次
                             
                             collectionTasks.add(collectionTask);
-                        }
-                    }
-                    
+            }
+        }
+        
                     // 4. 创建采集任务
                     if (!collectionTasks.isEmpty()) {
                         collectionTaskService.createCollectionTasks(batch.getId(), collectionTasks);
-                        
+        
                         // 5. 提交批次，开始处理
                         boolean submitted = collectionTaskService.submitBatch(batch.getId());
                         if (submitted) {

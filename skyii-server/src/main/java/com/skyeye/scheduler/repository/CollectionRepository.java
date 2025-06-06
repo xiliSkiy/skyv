@@ -15,7 +15,7 @@ import java.util.Optional;
  * 采集器数据访问层
  */
 @Repository
-public interface CollectorRepository extends JpaRepository<Collector, Long> {
+public interface CollectionRepository extends JpaRepository<Collector, Long> {
 
     /**
      * 根据采集器名称查询
@@ -39,7 +39,7 @@ public interface CollectorRepository extends JpaRepository<Collector, Long> {
      * @return 更新行数
      */
     @Modifying
-    @Query("UPDATE Collector c SET c.lastHeartbeat = :time, c.status = :status WHERE c.id = :id")
+    @Query("UPDATE Collector c SET c.lastHeartbeatTime = :time, c.status = :status WHERE c.id = :id")
     int updateHeartbeat(@Param("id") Long id, @Param("time") LocalDateTime time, @Param("status") Integer status);
     
     /**
@@ -48,6 +48,6 @@ public interface CollectorRepository extends JpaRepository<Collector, Long> {
      * @param status 当前状态
      * @return 采集器列表
      */
-    @Query("SELECT c FROM Collector c WHERE c.lastHeartbeat < :time AND c.status = :status")
+    @Query("SELECT c FROM Collector c WHERE c.lastHeartbeatTime < :time AND c.status = :status")
     List<Collector> findTimeoutCollectors(@Param("time") LocalDateTime time, @Param("status") Integer status);
 } 

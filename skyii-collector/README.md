@@ -37,6 +37,7 @@ SkyEye采集器是SkyEye智能监控系统的核心组件，负责从各种设�
 git clone https://github.com/skyeye/skyii-collector.git
 cd skyii-collector
 
+ go mod tidy
 # 构建
 go build -o skyii-collector cmd/collector/main.go
 ```

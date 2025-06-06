@@ -34,11 +34,6 @@ spring:
     time-zone: Asia/Shanghai
     serialization:
       write-dates-as-timestamps: false
-      
-  # 解决Springfox与Spring Boot 2.7.x的兼容性问题
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
 
   # 文件编码配置
   http:
@@ -46,6 +41,16 @@ spring:
       charset: UTF-8
       force: true
       enabled: true
+
+# SpringDoc OpenAPI配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui/index.html
+    disable-swagger-default-url: true
+    operations-sorter: method
+    urls-primary-name: SkyEye API
 
 # JWT配置
 jwt:

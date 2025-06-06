@@ -2,13 +2,16 @@ package com.skyeye.collector.service.impl;
 
 import com.skyeye.collector.dto.CollectorDTO;
 import com.skyeye.collector.dto.CollectorMetricsDTO;
+import com.skyeye.collector.dto.CollectorRegisterDTO;
+import com.skyeye.collector.dto.HeartbeatDTO;
+import com.skyeye.collector.dto.CollectorRegisterResponseDTO;
+import com.skyeye.collector.dto.HeartbeatResponseDTO;
 import com.skyeye.collector.entity.Collector;
 import com.skyeye.collector.repository.DeviceCollectorRepository;
 import com.skyeye.collector.service.CollectorService;
 import com.skyeye.common.exception.BusinessException;
-import com.skyeye.scheduler.dto.CollectorRegisterDTO;
-import com.skyeye.scheduler.dto.HeartbeatDTO;
-import com.skyeye.scheduler.repository.CollectorRepository;
+import com.skyeye.collector.repository.CollectorRepository;
+import com.skyeye.collector.util.JwtUtil;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +47,9 @@ public class CollectorServiceImpl implements CollectorService {
     private int heartbeatTimeout;
     @Value("${jwt.secret:defaultSecretKey}")
     private String jwtSecret;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     @Transactional
@@ -557,5 +563,122 @@ public class CollectorServiceImpl implements CollectorService {
             collector.setStatus(0); // 0表示"OFFLINE"状态
             collectorRepository.save(collector);
         }
+    }
+
+    /**
+     * 注册采集端并返回响应DTO
+     *
+     * @param registerDTO 注册请求DTO
+     * @return 注册响应DTO
+     */
+    @Override
+    @Transactional
+    public CollectorRegisterResponseDTO registerCollectorWithResponse(CollectorRegisterDTO registerDTO) {
+        log.info("注册采集端: {}", registerDTO);
+        
+        Collector collector;
+        
+        // 检查是否首次注册
+        if (registerDTO.getCollectorId() == null || registerDTO.getCollectorId().isEmpty()) {
+            // 新建采集器
+            collector = new Collector();
+            collector.setCollectorId(UUID.randomUUID().toString());
+        } else {
+            // 已有采集器重新注册
+            collector = collectorRepository.findByCollectorId(registerDTO.getCollectorId())
+                    .orElseGet(() -> {
+                        Collector newCollector = new Collector();
+                        newCollector.setCollectorId(registerDTO.getCollectorId());
+                        return newCollector;
+                    });
+        }
+        
+        // 更新采集器信息
+        collector.setHostname(registerDTO.getHostname());
+        collector.setIpAddress(registerDTO.getIp());
+        collector.setVersion(registerDTO.getVersion());
+        collector.setCapabilities(String.join(",", registerDTO.getCapabilities()));
+        if (registerDTO.getTags() != null) {
+            collector.setTags(String.join(",", registerDTO.getTags()));
+        }
+        collector.setStatus("ONLINE"); // 直接设置为字符串
+        collector.setLastHeartbeatTime(LocalDateTime.now());
+        collector.setUpdatedAt(LocalDateTime.now());
+        
+        if (collector.getCreatedAt() == null) {
+            collector.setCreatedAt(LocalDateTime.now());
+        }
+        
+        collector = collectorRepository.save(collector);
+        
+        // 生成令牌（如果没有jwtUtil则创建一个临时的JWT token）
+        String token;
+        if (jwtUtil != null) {
+            token = jwtUtil.generateToken(collector.getCollectorId());
+        } else {
+            // 临时生成一个简单token，生产环境应使用注入的jwtUtil
+            token = generateSimpleToken(collector.getCollectorId());
+        }
+        
+        // 构造响应
+        CollectorRegisterResponseDTO response = new CollectorRegisterResponseDTO();
+        response.setCollectorId(collector.getCollectorId());
+        response.setToken(token);
+        response.setServerTime(LocalDateTime.now().toString());
+        
+        return response;
+    }
+    
+    /**
+     * 生成简单Token (临时使用，应由JwtUtil替代)
+     */
+    private String generateSimpleToken(String collectorId) {
+        return Jwts.builder()
+                .setSubject(collectorId)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 24小时有效期
+                .signWith(SignatureAlgorithm.HS512, jwtSecret)
+                .compact();
+    }
+
+    /**
+     * 处理心跳
+     *
+     * @param collectorId 采集端ID
+     * @param heartbeatDTO 心跳请求DTO
+     * @return 心跳响应DTO
+     */
+    @Override
+    @Transactional
+    public HeartbeatResponseDTO processHeartbeat(String collectorId, HeartbeatDTO heartbeatDTO) {
+        log.debug("处理采集端[{}]心跳: {}", collectorId, heartbeatDTO);
+        
+        Collector collector = collectorRepository.findByCollectorId(collectorId)
+                .orElseThrow(() -> new RuntimeException("采集端不存在: " + collectorId));
+        
+        // 更新状态
+        collector.setStatus(heartbeatDTO.getStatus());
+        collector.setLastHeartbeatTime(LocalDateTime.now());
+        
+        // 更新性能指标
+        collector.setCpuUsage(heartbeatDTO.getMetrics().getCpu());
+        collector.setMemoryUsage(heartbeatDTO.getMetrics().getMemory());
+        collector.setDiskUsage(heartbeatDTO.getMetrics().getDisk());
+        collector.setRunningTasks(heartbeatDTO.getMetrics().getRunningTasks());
+        
+        if (heartbeatDTO.getError() != null && !heartbeatDTO.getError().isEmpty()) {
+            collector.setLastError(heartbeatDTO.getError());
+            collector.setLastErrorTime(LocalDateTime.now());
+        }
+        
+        collector.setUpdatedAt(LocalDateTime.now());
+        collectorRepository.save(collector);
+        
+        // 构造响应
+        HeartbeatResponseDTO response = new HeartbeatResponseDTO();
+        response.setServerTime(LocalDateTime.now().toString());
+        response.setAction("CONTINUE"); // 默认继续工作，可根据系统状态返回不同指令
+        
+        return response;
     }
 } 

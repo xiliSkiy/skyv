@@ -105,7 +105,7 @@ skyii-server/
 
 系统集成了Swagger文档，启动后可通过以下地址访问：
 ```
-http://localhost:8080/api/swagger-ui/
+http://localhost:8080/api/swagger-ui.html
 ```
 
 ## 默认账号

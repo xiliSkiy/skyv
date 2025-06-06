@@ -2,9 +2,11 @@ package com.skyeye.collector.service;
 
 import com.skyeye.collector.dto.CollectorDTO;
 import com.skyeye.collector.dto.CollectorMetricsDTO;
+import com.skyeye.collector.dto.CollectorRegisterDTO;
+import com.skyeye.collector.dto.CollectorRegisterResponseDTO;
+import com.skyeye.collector.dto.HeartbeatDTO;
+import com.skyeye.collector.dto.HeartbeatResponseDTO;
 import com.skyeye.collector.entity.Collector;
-import com.skyeye.scheduler.dto.CollectorRegisterDTO;
-import com.skyeye.scheduler.dto.HeartbeatDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -169,4 +171,21 @@ public interface CollectorService {
      * 超过指定时间未心跳的采集器将被标记为离线
      */
     void checkTimeoutCollectors();
+    
+    /**
+     * 注册采集端并返回响应DTO
+     * 
+     * @param registerDTO 注册请求DTO
+     * @return 注册响应DTO
+     */
+    CollectorRegisterResponseDTO registerCollectorWithResponse(CollectorRegisterDTO registerDTO);
+    
+    /**
+     * 处理心跳
+     * 
+     * @param collectorId 采集端ID
+     * @param heartbeatDTO 心跳请求DTO
+     * @return 心跳响应DTO
+     */
+    HeartbeatResponseDTO processHeartbeat(String collectorId, HeartbeatDTO heartbeatDTO);
 } 
