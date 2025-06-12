@@ -73,7 +73,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDeviceDetail, deleteDevice, checkDeviceConnection } from '@/api/device'
+import { getDeviceById, deleteDevice, checkDeviceConnection } from '@/api/device'
 import { formatDateTime } from '@/utils/date'
 
 const route = useRoute()
@@ -103,14 +103,12 @@ const getDeviceStatusText = (status) => {
 }
 
 // 获取设备详情
-const getDevice = async () => {
+const fetchDeviceDetail = async (deviceId) => {
   loading.value = true
   try {
-    const res = await getDeviceDetail(deviceId)
+    const res = await getDeviceById(deviceId)
     if (res.data) {
       Object.assign(device, res.data)
-    } else {
-      ElMessage.error('获取设备详情失败')
     }
   } catch (error) {
     console.error('获取设备详情失败', error)
@@ -156,7 +154,7 @@ const handleDelete = () => {
 
 // 初始化
 onMounted(() => {
-  getDevice()
+  fetchDeviceDetail(deviceId)
 })
 </script>
 

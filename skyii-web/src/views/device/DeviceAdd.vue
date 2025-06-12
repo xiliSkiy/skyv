@@ -118,7 +118,7 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createDevice, getDeviceDetail, updateDevice } from '@/api/device'
+import { createDevice, getDeviceById, updateDevice } from '@/api/device'
 import { formatDateTime } from '@/utils/date'
 
 const route = useRoute()
@@ -276,7 +276,7 @@ const resetForm = () => {
 const getDevice = async (id) => {
   loading.value = true
   try {
-    const res = await getDeviceDetail(id)
+    const res = await getDeviceById(id)
     if (res.data) {
       Object.assign(deviceForm, res.data)
     }
