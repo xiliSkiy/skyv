@@ -51,4 +51,10 @@ public class TaskDevice extends BaseEntity {
      */
     @Column(name = "device_location", length = 255)
     private String deviceLocation;
+    
+    /**
+     * 状态（1-正常，2-异常，3-离线）
+     */
+    @Column(name = "status")
+    private Integer status;
 } 

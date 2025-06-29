@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100px" height="100px" viewBox="0 0 100 100" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>AI Assistant</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <circle fill="#409EFF" cx="50" cy="50" r="50"></circle>
+        <path d="M65,35 C65,28.373 59.627,23 53,23 C46.373,23 41,28.373 41,35 C41,41.627 46.373,47 53,47 C59.627,47 65,41.627 65,35 Z" fill="#FFFFFF"></path>
+        <path d="M75,77 L75,67 C75,58.163 67.837,51 59,51 L47,51 C38.163,51 31,58.163 31,67 L31,77 L75,77 Z" fill="#FFFFFF"></path>
+        <path d="M30,30 L25,30 L25,35 L20,35 L20,30 L15,30 L15,25 L20,25 L20,20 L25,20 L25,25 L30,25 L30,30 Z" fill="#FFFFFF"></path>
+        <path d="M85,30 L80,30 L80,35 L75,35 L75,30 L70,30 L70,25 L75,25 L75,20 L80,20 L80,25 L85,25 L85,30 Z" fill="#FFFFFF"></path>
+    </g>
+</svg> 

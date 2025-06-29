@@ -3,6 +3,8 @@ package com.skyeye.scheduler.dto;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 任务设备数据传输对象
@@ -38,6 +40,11 @@ public class TaskDeviceDTO implements Serializable {
     private String deviceType;
 
     /**
+     * 设备型号
+     */
+    private String deviceModel;
+
+    /**
      * 设备位置
      */
     private String location;
@@ -51,4 +58,14 @@ public class TaskDeviceDTO implements Serializable {
      * IP地址
      */
     private String ipAddress;
+    
+    /**
+     * 最后在线时间
+     */
+    private LocalDateTime lastOnlineTime;
+    
+    /**
+     * 设备标签
+     */
+    private List<String> tags;
 } 

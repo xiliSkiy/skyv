@@ -19,10 +19,22 @@
           <el-icon><Odometer /></el-icon>
           <template #title>控制台</template>
         </el-menu-item>
-        <el-menu-item index="/device">
-          <el-icon><VideoCamera /></el-icon>
-          <template #title>设备管理</template>
-        </el-menu-item>
+        
+        <!-- 设备管理菜单 -->
+        <el-sub-menu index="/device">
+          <template #title>
+            <el-icon><VideoCamera /></el-icon>
+            <span>设备管理</span>
+          </template>
+          <el-menu-item index="/device">设备列表</el-menu-item>
+          <el-menu-item index="/device/types">设备类型</el-menu-item>
+          <el-menu-item index="/device/areas">设备区域</el-menu-item>
+          <el-menu-item index="/device/groups">设备分组</el-menu-item>
+          <el-menu-item index="/device/tags">设备标签</el-menu-item>
+          <el-menu-item index="/device/protocols">设备协议</el-menu-item>
+          <el-menu-item index="/device/templates">设备模板</el-menu-item>
+        </el-sub-menu>
+        
         <el-menu-item index="/monitoring">
           <el-icon><Monitor /></el-icon>
           <template #title>实时监控</template>

@@ -9,44 +9,59 @@ alwaysApply: true
 
 | 原型文件 | 功能模块 | 主要功能 | 优先级 |
 |---------|---------|---------|-------|
-| login.html | 用户认证 | 系统登录入口 | 高 |
-| dashboard.html | 控制台 | 系统总览、关键指标展示 | 高 |
-| devices.html | 设备管理 | 设备列表、状态监控 | 高 |
-| device_add.html | 设备管理 | 添加新设备-基本信息 | 高 |
-| device_add_network.html | 设备管理 | 添加新设备-网络设置 | 高 |
-| device_add_advanced.html | 设备管理 | 添加新设备-高级配置 | 中 |
-| device_add_confirm.html | 设备管理 | 添加新设备-确认信息 | 高 |
-| device_detail.html | 设备管理 | 设备详情、状态监控 | 高 |
-| monitoring.html | 监控管理 | 实时监控画面 | 高 |
 | alerts.html | 报警中心 | 报警事件列表 | 高 |
 | analytics.html | 数据分析 | 数据统计与分析 | 中 |
-| task_scheduling.html | 任务调度 | 任务列表与管理 | 中 |
-| task_create.html | 任务调度 | 创建新任务 | 中 |
-| task_device_selection.html | 任务调度 | 设备选择、批量操作 | 中 |
-| task_metrics_config.html | 任务调度 | 监控指标配置 | 中 |
-| task_schedule_setting.html | 任务调度 | 任务计划配置 | 中 |
-| settings.html | 系统设置 | 设置模块入口 | 高 |
-| settings_system.html | 系统设置 | 基本系统配置 | 高 |
-| settings_metrics.html | 系统设置 | 指标配置 | 指标管理 | 高 |
-| settings_metrics_templates.html | 系统设置 | 指标配置 | 指标模板 | 高 |
-| collector_management.html | 系统设置 | 采集器管理 | 高 |
-| settings_metrics_history.html | 系统设置 | 采集器管理 | 创建采集器 | 高 |
-| settings_metrics_history.html | 系统设置 | 采集器管理 | 配置 | 高 |
-| settings_metrics_history.html | 系统设置 | 采集器管理 | 详情 | 高 |
-| settings_metrics_history.html | 系统设置 | 指标配置 | 采集历史 | 高 |
-| settings_network.html | 系统设置 | 网络参数配置 | 高 |
-| settings_storage.html | 系统设置 | 存储资源管理 | 高 |
-| settings_security.html | 系统设置 | 安全相关配置 | 高 |
-| settings_notification.html | 系统设置 | 通知方式配置 | 中 |
-| settings_logs.html | 系统设置 | 系统日志查看 | 中 |
-| settings_backup.html | 系统设置 | 备份与恢复 | 中 |
+| collector_add.html | 采集器管理 | 采集器添加 | 中 |
+| collector_config.html | 采集器管理 | 采集器配置 | 中 |
+| collector_detail.html | 采集器管理 | 采集器详情 | 中 |
+| collector_management.html | 采集器管理 | 采集器列表 | 中 |
+| dashboard.html | 控制台 | 系统总览、关键指标展示 | 高 |
+| device_add_advanced.html | 设备管理 | 添加新设备-高级配置 | 中 |
+| device_add_confirm.html | 设备管理 | 添加新设备-确认信息 | 高 |
+| device_add_network.html | 设备管理 | 添加新设备-网络设置 | 高 |
+| device_add.html | 设备管理 | 添加新设备-基本信息 | 高 |
+| device_detail.html | 设备管理 | 设备详情、状态监控 | 高 |
+
+| device_selection.html | 任务调度 | 设备选择 | 高 | 废弃
+| metrics_configuration.html | 任务调度 | 指标配置 | 高 | 废弃
+| schedule_setting.html | 任务调度 | 调度配置 | 高 | 废弃
+
+| devices.html | 设备管理 | 设备列表、状态监控 | 高 |
+| history.html | 历史记录 | 历史数据查询 | 中 |
+| login.html | 用户认证 | 系统登录入口 | 高 | 
+| monitoring.html | 监控管理 | 实时监控画面 | 高 |
 | settings_alerts.html | 系统设置 | 报警规则配置 | 中 |
 | settings_analytics.html | 系统设置 | 分析功能配置 | 低 |
 | settings_analytics_report.html | 系统设置 | 分析报告配置 | 低 |
 | settings_analytics_alert.html | 系统设置 | 分析报警配置 | 低 |
 | settings_analytics_data.html | 系统设置 | 分析数据管理 | 低 |
+| settings_logs.html | 系统设置 | 系统日志查看 | 中 |
+| settings_backup.html | 系统设置 | 备份与恢复 | 中 |
+| settings_metrics_collectors.html | 系统设置 | 指标配置 | 采集器配置 | 高 | 废弃
+| settings_metrics_history.html | 系统设置 | 指标配置 | 采集历史 | 高 | 废弃
+| settings_metrics_templates.html | 系统设置 | 指标配置 | 指标模板 | 高 |
+| settings_metrics.html | 系统设置 | 指标配置 | 指标管理 | 高 |
+
+| settings_system.html | 系统设置 | 基本系统配置 | 高 |
+| settings_network.html | 系统设置 | 网络参数配置 | 高 |
+| settings_storage.html | 系统设置 | 存储资源管理 | 高 |
+| settings_security.html | 系统设置 | 安全相关配置 | 高 |
+| settings_notification.html | 系统设置 | 通知方式配置 | 中 |
+| settings.html | 系统设置 | 设置模块入口 | 高 |
+
+| task_scheduling.html | 任务调度 | 任务列表与管理 | 中 |
+| task_create.html | 任务调度 | 创建新任务 | 中 |
+| task_device_selection.html | 任务调度 | 设备选择、批量操作 | 中 |
+| task_metrics_config.html | 任务调度 | 监控指标配置 | 中 |
+| task_schedule_setting.html | 任务调度 | 任务计划配置 | 中 |
 | users.html | 用户管理 | 用户账号管理 | 高 |
-| history.html | 历史记录 | 历史数据查询 | 中 |
+
+
+
+
+
+
+
 
 ## 功能模块与开发阶段规划
 

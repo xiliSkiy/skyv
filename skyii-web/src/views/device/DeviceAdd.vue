@@ -5,109 +5,477 @@
         <div class="card-header">
           <div class="header-title">{{ isEdit ? '编辑设备' : '添加设备' }}</div>
           <div class="header-actions">
-            <el-button @click="$router.push('/device')">返回设备列表</el-button>
+            <el-button @click="$router.push('/device')">
+              <el-icon><Back /></el-icon>返回设备列表
+            </el-button>
           </div>
         </div>
       </template>
 
       <!-- 步骤条 -->
-      <el-steps :active="activeStep" finish-status="success" simple style="margin-bottom: 30px;">
-        <el-step title="基本信息" />
-        <el-step title="网络设置" />
-        <el-step title="高级配置" />
-        <el-step title="确认信息" />
-      </el-steps>
+      <div class="wizard-steps">
+        <div class="step-item" :class="{ 'active': activeStep >= 0, 'completed': activeStep > 0 }">
+          <div class="step-icon">1</div>
+          <div class="step-text">基本信息</div>
+          <div class="step-line" v-if="activeStep > 0"></div>
+        </div>
+        <div class="step-item" :class="{ 'active': activeStep >= 1, 'completed': activeStep > 1 }">
+          <div class="step-icon">2</div>
+          <div class="step-text">网络设置</div>
+          <div class="step-line" v-if="activeStep > 1"></div>
+        </div>
+        <div class="step-item" :class="{ 'active': activeStep >= 2, 'completed': activeStep > 2 }">
+          <div class="step-icon">3</div>
+          <div class="step-text">高级配置</div>
+          <div class="step-line" v-if="activeStep > 2"></div>
+        </div>
+        <div class="step-item" :class="{ 'active': activeStep >= 3 }">
+          <div class="step-icon">4</div>
+          <div class="step-text">确认信息</div>
+        </div>
+      </div>
 
       <!-- 表单内容 -->
       <div v-loading="loading">
         <!-- 步骤1：基本信息 -->
         <div v-show="activeStep === 0">
+          <!-- 模板选择 -->
+          <div class="form-section">
+            <div class="form-section-title">
+              <el-icon><Document /></el-icon> 从模板创建
+            </div>
+            <el-row :gutter="20">
+              <el-col :span="6" v-for="template in deviceTemplates" :key="template.id">
+                <div class="template-card" :class="{ 'selected': selectedTemplate === template.id }" @click="selectTemplate(template)">
+                  <div class="template-header">
+                    <el-icon v-if="template.type === 'CAMERA'"><VideoCamera /></el-icon>
+                    <el-icon v-else-if="template.type === 'SENSOR'"><Odometer /></el-icon>
+                    <el-icon v-else-if="template.type === 'ACCESS'"><Key /></el-icon>
+                    <el-icon v-else><Monitor /></el-icon>
+                    {{ template.name }}
+                  </div>
+                  <div class="template-body">
+                    <p><strong>类型:</strong> {{ getDeviceTypeText(template.type) }}</p>
+                    <p><strong>适用:</strong> {{ template.applicableScenario }}</p>
+                    <p><strong>描述:</strong> {{ template.description }}</p>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+
+          <el-divider>
+            <el-icon><Edit /></el-icon> 手动配置
+          </el-divider>
+
           <el-form ref="basicFormRef" :model="deviceForm" :rules="basicRules" label-width="100px">
-            <el-form-item label="设备名称" prop="name">
-              <el-input v-model="deviceForm.name" placeholder="请输入设备名称" />
-            </el-form-item>
-            <el-form-item label="设备编码" prop="code">
-              <el-input v-model="deviceForm.code" placeholder="请输入设备编码" />
-            </el-form-item>
-            <el-form-item label="设备类型" prop="type">
-              <el-select v-model="deviceForm.type" placeholder="请选择设备类型" style="width: 100%;">
-                <el-option label="摄像头" value="摄像头" />
-                <el-option label="传感器" value="传感器" />
-                <el-option label="门禁" value="门禁" />
-                <el-option label="其他" value="其他" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="设备位置" prop="location">
-              <el-input v-model="deviceForm.location" placeholder="请输入设备位置" />
-            </el-form-item>
-            <el-form-item label="设备描述" prop="description">
-              <el-input v-model="deviceForm.description" type="textarea" rows="3" placeholder="请输入设备描述" />
-            </el-form-item>
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><InfoFilled /></el-icon> 基本信息
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="设备名称" prop="name">
+                    <el-input v-model="deviceForm.name" placeholder="请输入设备名称" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="设备编码" prop="code">
+                    <el-input v-model="deviceForm.code" placeholder="请输入设备编码" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="设备类型" prop="type">
+                    <el-select v-model="deviceForm.type" placeholder="请选择设备类型" style="width: 100%;">
+                      <el-option label="摄像头" value="CAMERA" />
+                      <el-option label="传感器" value="SENSOR" />
+                      <el-option label="门禁" value="ACCESS" />
+                      <el-option label="其他" value="OTHER" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="设备型号" prop="model">
+                    <el-input v-model="deviceForm.model" placeholder="请输入设备型号" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Management /></el-icon> 分组与区域
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="设备分组" prop="groupId">
+                    <el-select v-model="deviceForm.groupId" placeholder="请选择设备分组" style="width: 100%;">
+                      <el-option label="安防监控" :value="1" />
+                      <el-option label="环境监测" :value="2" />
+                      <el-option label="门禁管理" :value="3" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="所属区域" prop="area">
+                    <el-select v-model="deviceForm.area" placeholder="请选择所属区域" style="width: 100%;">
+                      <el-option label="北区" value="NORTH" />
+                      <el-option label="南区" value="SOUTH" />
+                      <el-option label="东区" value="EAST" />
+                      <el-option label="西区" value="WEST" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="设备标签" prop="tags">
+                    <el-select v-model="deviceForm.tags" multiple placeholder="请选择标签" style="width: 100%;">
+                      <el-option label="重要" value="IMPORTANT" />
+                      <el-option label="室外" value="OUTDOOR" />
+                      <el-option label="室内" value="INDOOR" />
+                      <el-option label="测试" value="TEST" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="设备位置" prop="location">
+                    <el-input v-model="deviceForm.location" placeholder="请输入设备位置" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><DocumentCopy /></el-icon> 描述信息
+              </div>
+              <el-form-item label="设备描述" prop="description">
+                <el-input v-model="deviceForm.description" type="textarea" rows="3" placeholder="请输入设备描述" />
+              </el-form-item>
+            </div>
           </el-form>
         </div>
 
         <!-- 步骤2：网络设置 -->
         <div v-show="activeStep === 1">
           <el-form ref="networkFormRef" :model="deviceForm" :rules="networkRules" label-width="100px">
-            <el-form-item label="IP地址" prop="ipAddress">
-              <el-input v-model="deviceForm.ipAddress" placeholder="请输入IP地址" />
-            </el-form-item>
-            <el-form-item label="端口" prop="port">
-              <el-input-number v-model="deviceForm.port" :min="1" :max="65535" placeholder="请输入端口" style="width: 100%;" />
-            </el-form-item>
-            <el-form-item label="用户名" prop="username">
-              <el-input v-model="deviceForm.username" placeholder="请输入用户名" />
-            </el-form-item>
-            <el-form-item label="密码" prop="password">
-              <el-input v-model="deviceForm.password" type="password" placeholder="请输入密码" show-password />
-            </el-form-item>
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Connection /></el-icon> 网络连接
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="IP地址" prop="ipAddress">
+                    <el-input v-model="deviceForm.ipAddress" placeholder="请输入IP地址" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="端口" prop="port">
+                    <el-input-number v-model="deviceForm.port" :min="1" :max="65535" placeholder="请输入端口" style="width: 100%;" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="MAC地址" prop="macAddress">
+                    <el-input v-model="deviceForm.macAddress" placeholder="请输入MAC地址" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="连接方式" prop="connectionType">
+                    <el-select v-model="deviceForm.connectionType" placeholder="请选择连接方式" style="width: 100%;">
+                      <el-option label="有线" value="WIRED" />
+                      <el-option label="无线" value="WIRELESS" />
+                      <el-option label="蜂窝网络" value="CELLULAR" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Lock /></el-icon> 认证信息
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="用户名" prop="username">
+                    <el-input v-model="deviceForm.username" placeholder="请输入用户名" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="密码" prop="password">
+                    <el-input v-model="deviceForm.password" type="password" placeholder="请输入密码" show-password />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="认证方式" prop="authType">
+                    <el-select v-model="deviceForm.authType" placeholder="请选择认证方式" style="width: 100%;">
+                      <el-option label="基本认证" value="BASIC" />
+                      <el-option label="摘要认证" value="DIGEST" />
+                      <el-option label="令牌认证" value="TOKEN" />
+                      <el-option label="无认证" value="NONE" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="自动重连" prop="autoReconnect">
+                    <el-switch v-model="deviceForm.autoReconnect" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Monitor /></el-icon> 网络参数
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="8">
+                  <el-form-item label="子网掩码" prop="subnetMask">
+                    <el-input v-model="deviceForm.subnetMask" placeholder="例如：255.255.255.0" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="默认网关" prop="gateway">
+                    <el-input v-model="deviceForm.gateway" placeholder="请输入默认网关" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="DNS" prop="dns">
+                    <el-input v-model="deviceForm.dns" placeholder="请输入DNS" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
           </el-form>
         </div>
 
         <!-- 步骤3：高级配置 -->
         <div v-show="activeStep === 2">
           <el-form ref="advancedFormRef" :model="deviceForm" label-width="100px">
-            <el-form-item label="设备分组" prop="groupId">
-              <el-select v-model="deviceForm.groupId" placeholder="请选择设备分组" style="width: 100%;">
-                <el-option label="默认分组" :value="1" />
-                <el-option label="重要设备" :value="2" />
-                <el-option label="办公区域" :value="3" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="设备状态" prop="status">
-              <el-radio-group v-model="deviceForm.status">
-                <el-radio :label="0">离线</el-radio>
-                <el-radio :label="1">在线</el-radio>
-                <el-radio :label="2">故障</el-radio>
-              </el-radio-group>
-            </el-form-item>
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Setting /></el-icon> 设备配置
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="设备状态" prop="status">
+                    <el-select v-model="deviceForm.status" placeholder="请选择设备状态" style="width: 100%;">
+                      <el-option label="离线" :value="0" />
+                      <el-option label="在线" :value="1" />
+                      <el-option label="故障" :value="2" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="自动检测" prop="autoDetect">
+                    <el-switch v-model="deviceForm.autoDetect" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              
+              <div v-if="deviceForm.type === 'CAMERA'" class="camera-params">
+                <el-divider content-position="left">摄像头参数</el-divider>
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="分辨率" prop="resolution">
+                      <el-select v-model="deviceForm.resolution" placeholder="请选择分辨率" style="width: 100%;">
+                        <el-option label="1920x1080" value="1920x1080" />
+                        <el-option label="1280x720" value="1280x720" />
+                        <el-option label="640x480" value="640x480" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="帧率" prop="frameRate">
+                      <el-input v-model="deviceForm.frameRate" placeholder="例如：25fps" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="码率" prop="bitRate">
+                      <el-input v-model="deviceForm.bitRate" placeholder="例如：4Mbps" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="图像格式" prop="imageFormat">
+                      <el-select v-model="deviceForm.imageFormat" placeholder="请选择图像格式" style="width: 100%;">
+                        <el-option label="H.264" value="H.264" />
+                        <el-option label="H.265" value="H.265" />
+                        <el-option label="MJPEG" value="MJPEG" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="云台控制" prop="ptzControl">
+                      <el-switch v-model="deviceForm.ptzControl" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="红外功能" prop="infrared">
+                      <el-switch v-model="deviceForm.infrared" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><SetUp /></el-icon> 协议配置
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="协议类型" prop="protocol">
+                    <el-select v-model="deviceForm.protocol" placeholder="请选择协议类型" style="width: 100%;">
+                      <el-option label="RTSP" value="RTSP" />
+                      <el-option label="ONVIF" value="ONVIF" />
+                      <el-option label="MODBUS" value="MODBUS" />
+                      <el-option label="HTTP" value="HTTP" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="协议版本" prop="protocolVersion">
+                    <el-input v-model="deviceForm.protocolVersion" placeholder="请输入协议版本" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="传输方式" prop="transportProtocol">
+                    <el-select v-model="deviceForm.transportProtocol" placeholder="请选择传输方式" style="width: 100%;">
+                      <el-option label="TCP" value="TCP" />
+                      <el-option label="UDP" value="UDP" />
+                      <el-option label="HTTP" value="HTTP" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="数据路径" prop="dataPath">
+                    <el-input v-model="deviceForm.dataPath" placeholder="请输入数据路径" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <div class="form-section">
+              <div class="form-section-title">
+                <el-icon><Opportunity /></el-icon> 高级选项
+              </div>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item label="心跳间隔" prop="heartbeatInterval">
+                    <el-input-number v-model="deviceForm.heartbeatInterval" :min="5" :max="3600" placeholder="单位：秒" style="width: 100%;" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="超时时间" prop="timeout">
+                    <el-input-number v-model="deviceForm.timeout" :min="1" :max="60" placeholder="单位：秒" style="width: 100%;" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
           </el-form>
         </div>
 
         <!-- 步骤4：确认信息 -->
         <div v-show="activeStep === 3">
-          <el-descriptions title="设备信息确认" :column="2" border>
-            <el-descriptions-item label="设备名称">{{ deviceForm.name }}</el-descriptions-item>
-            <el-descriptions-item label="设备编码">{{ deviceForm.code }}</el-descriptions-item>
-            <el-descriptions-item label="设备类型">{{ deviceForm.type }}</el-descriptions-item>
-            <el-descriptions-item label="设备位置">{{ deviceForm.location || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="IP地址">{{ deviceForm.ipAddress }}</el-descriptions-item>
-            <el-descriptions-item label="端口">{{ deviceForm.port }}</el-descriptions-item>
-            <el-descriptions-item label="用户名">{{ deviceForm.username || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="设备状态">
-              <el-tag :type="getDeviceStatusType(deviceForm.status)">
-                {{ getDeviceStatusText(deviceForm.status) }}
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-card class="info-card">
+                <template #header>
+                  <div class="card-title">基本信息</div>
+                </template>
+                <el-descriptions :column="1" border>
+                  <el-descriptions-item label="设备名称">{{ deviceForm.name }}</el-descriptions-item>
+                  <el-descriptions-item label="设备编码">{{ deviceForm.code }}</el-descriptions-item>
+                  <el-descriptions-item label="设备类型">{{ getDeviceTypeText(deviceForm.type) }}</el-descriptions-item>
+                  <el-descriptions-item label="设备型号">{{ deviceForm.model || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="设备分组">{{ getGroupText(deviceForm.groupId) }}</el-descriptions-item>
+                  <el-descriptions-item label="所属区域">{{ deviceForm.area || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="设备位置">{{ deviceForm.location || '-' }}</el-descriptions-item>
+                </el-descriptions>
+              </el-card>
+            </el-col>
+            <el-col :span="12">
+              <el-card class="info-card">
+                <template #header>
+                  <div class="card-title">网络信息</div>
+                </template>
+                <el-descriptions :column="1" border>
+                  <el-descriptions-item label="IP地址">{{ deviceForm.ipAddress }}</el-descriptions-item>
+                  <el-descriptions-item label="端口">{{ deviceForm.port }}</el-descriptions-item>
+                  <el-descriptions-item label="MAC地址">{{ deviceForm.macAddress || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="连接方式">{{ getConnectionTypeText(deviceForm.connectionType) }}</el-descriptions-item>
+                  <el-descriptions-item label="认证方式">{{ getAuthTypeText(deviceForm.authType) }}</el-descriptions-item>
+                  <el-descriptions-item label="协议类型">{{ deviceForm.protocol || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="设备状态">
+                    <el-tag :type="getDeviceStatusType(deviceForm.status)">
+                      {{ getDeviceStatusText(deviceForm.status) }}
+                    </el-tag>
+                  </el-descriptions-item>
+                </el-descriptions>
+              </el-card>
+            </el-col>
+          </el-row>
+          
+          <el-card class="info-card">
+            <template #header>
+              <div class="card-title">设备标签</div>
+            </template>
+            <div class="tag-list">
+              <el-tag 
+                v-for="(tag, index) in deviceForm.tags" 
+                :key="index"
+                :type="getTagType(index)" 
+                class="tag-item"
+                effect="plain"
+              >
+                {{ tag }}
               </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="设备描述" :span="2">{{ deviceForm.description || '-' }}</el-descriptions-item>
-          </el-descriptions>
+              <el-empty v-if="!deviceForm.tags || deviceForm.tags.length === 0" description="暂无标签" />
+            </div>
+          </el-card>
+          
+          <el-card class="info-card">
+            <template #header>
+              <div class="card-title">设备描述</div>
+            </template>
+            <div class="device-description">
+              {{ deviceForm.description || '暂无描述' }}
+            </div>
+          </el-card>
+          
+          <el-alert
+            v-if="deviceForm.type === 'CAMERA'"
+            type="warning"
+            :closable="false"
+            title="特别注意"
+            description="请确保摄像头的使用符合当地法律法规，并在安装前告知相关人员。"
+            show-icon
+            class="device-alert"
+          />
         </div>
 
         <!-- 步骤按钮 -->
         <div class="step-actions">
-          <el-button @click="prevStep" v-if="activeStep > 0">上一步</el-button>
-          <el-button type="primary" @click="nextStep" v-if="activeStep < 3">下一步</el-button>
-          <el-button type="success" @click="submitForm" v-if="activeStep === 3">{{ isEdit ? '保存修改' : '提交' }}</el-button>
+          <el-button @click="prevStep" v-if="activeStep > 0">
+            <el-icon><ArrowLeft /></el-icon>上一步
+          </el-button>
+          <el-button type="primary" @click="nextStep" v-if="activeStep < 3">
+            下一步<el-icon><ArrowRight /></el-icon>
+          </el-button>
+          <el-button type="success" @click="submitForm" v-if="activeStep === 3">
+            <el-icon><Check /></el-icon>{{ isEdit ? '保存修改' : '确认提交' }}
+          </el-button>
         </div>
       </div>
     </el-card>
@@ -115,11 +483,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createDevice, getDeviceById, updateDevice } from '@/api/device'
 import { formatDateTime } from '@/utils/date'
+import {
+  Back, Edit, VideoCamera, Connection, Monitor, Document, Check,
+  InfoFilled, Management, DocumentCopy, Lock, Setting, SetUp,
+  Opportunity, Odometer, Key, ArrowLeft, ArrowRight
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -133,6 +505,57 @@ const activeStep = ref(0)
 // 加载状态
 const loading = ref(false)
 
+// 设备模板
+const deviceTemplates = ref([
+  {
+    id: 1,
+    name: '会议室摄像头',
+    type: 'CAMERA',
+    applicableScenario: '会议室、办公室',
+    description: '高清会议室摄像头，适用于中小型会议室',
+    model: 'HK-DS2CD2032-I',
+    ipAddress: '192.168.1.100',
+    port: 554,
+    protocol: 'ONVIF'
+  },
+  {
+    id: 2,
+    name: '温湿度传感器',
+    type: 'SENSOR',
+    applicableScenario: '机房、仓库',
+    description: '监测环境温湿度，支持远程报警',
+    model: 'TH-100',
+    ipAddress: '192.168.1.101',
+    port: 80,
+    protocol: 'MODBUS'
+  },
+  {
+    id: 3,
+    name: '门禁控制器',
+    type: 'ACCESS',
+    applicableScenario: '出入口、重要区域',
+    description: '支持刷卡、密码、人脸识别多种验证方式',
+    model: 'AC-200',
+    ipAddress: '192.168.1.102',
+    port: 8000,
+    protocol: 'HTTP'
+  },
+  {
+    id: 4,
+    name: '停车场摄像头',
+    type: 'CAMERA',
+    applicableScenario: '停车场、出入口',
+    description: '支持车牌识别，适用于室外环境',
+    model: 'HK-DS2CD4A26FWD-IZS',
+    ipAddress: '192.168.1.103',
+    port: 554,
+    protocol: 'RTSP'
+  }
+])
+
+// 选中的模板ID
+const selectedTemplate = ref(null)
+
 // 表单引用
 const basicFormRef = ref(null)
 const networkFormRef = ref(null)
@@ -142,15 +565,38 @@ const advancedFormRef = ref(null)
 const deviceForm = reactive({
   name: '',
   code: '',
-  type: '',
+  type: 'CAMERA',
+  model: '',
   location: '',
   description: '',
   ipAddress: '',
   port: 554,
-  username: '',
+  macAddress: '',
+  subnetMask: '',
+  gateway: '',
+  dns: '',
+  connectionType: 'WIRED',
+  username: 'admin',
   password: '',
+  authType: 'DIGEST',
+  autoReconnect: true,
   groupId: 1,
-  status: 0
+  area: '',
+  tags: [],
+  status: 1,
+  autoDetect: true,
+  protocol: 'ONVIF',
+  protocolVersion: '2.0',
+  transportProtocol: 'RTSP',
+  dataPath: '',
+  resolution: '1920x1080',
+  frameRate: '25fps',
+  bitRate: '4Mbps',
+  imageFormat: 'H.264',
+  ptzControl: false,
+  infrared: false,
+  heartbeatInterval: 30,
+  timeout: 5
 })
 
 // 基本信息验证规则
@@ -200,6 +646,80 @@ const getDeviceStatusText = (status) => {
   return textMap[status] || '未知'
 }
 
+// 获取设备类型文本
+const getDeviceTypeText = (type) => {
+  const typeMap = {
+    'CAMERA': '摄像头',
+    'SENSOR': '传感器',
+    'ACCESS': '门禁',
+    'OTHER': '其他'
+  }
+  return typeMap[type] || type
+}
+
+// 获取分组文本
+const getGroupText = (groupId) => {
+  const groupMap = {
+    1: '安防监控',
+    2: '环境监测',
+    3: '门禁管理'
+  }
+  return groupMap[groupId] || '默认分组'
+}
+
+// 获取连接方式文本
+const getConnectionTypeText = (type) => {
+  const typeMap = {
+    'WIRED': '有线',
+    'WIRELESS': '无线',
+    'CELLULAR': '蜂窝网络'
+  }
+  return typeMap[type] || type || '-'
+}
+
+// 获取认证方式文本
+const getAuthTypeText = (type) => {
+  const typeMap = {
+    'BASIC': '基本认证',
+    'DIGEST': '摘要认证',
+    'TOKEN': '令牌认证',
+    'NONE': '无认证'
+  }
+  return typeMap[type] || type || '-'
+}
+
+// 获取标签类型
+const getTagType = (index) => {
+  const types = ['', 'success', 'warning', 'danger', 'info']
+  return types[index % types.length]
+}
+
+// 选择模板
+const selectTemplate = (template) => {
+  selectedTemplate.value = template.id
+  
+  // 填充表单数据
+  deviceForm.name = template.name
+  deviceForm.code = `DEV${new Date().getTime().toString().substr(-8)}`
+  deviceForm.type = template.type
+  deviceForm.model = template.model
+  deviceForm.description = template.description
+  deviceForm.ipAddress = template.ipAddress
+  deviceForm.port = template.port
+  deviceForm.protocol = template.protocol
+  
+  // 根据设备类型设置默认值
+  if (template.type === 'CAMERA') {
+    deviceForm.resolution = '1920x1080'
+    deviceForm.frameRate = '25fps'
+    deviceForm.transportProtocol = 'RTSP'
+  } else if (template.type === 'SENSOR') {
+    deviceForm.heartbeatInterval = 60
+  } else if (template.type === 'ACCESS') {
+    deviceForm.authType = 'TOKEN'
+  }
+}
+
 // 上一步
 const prevStep = () => {
   if (activeStep.value > 0) {
@@ -232,15 +752,11 @@ const nextStep = async () => {
 const submitForm = async () => {
   loading.value = true
   try {
-    if (isEdit.value) {
-      const deviceId = route.params.id
-      await updateDevice(deviceId, deviceForm)
-      ElMessage.success('设备更新成功')
-    } else {
-      await createDevice(deviceForm)
-      ElMessage.success('设备添加成功')
-    }
-    router.push('/device')
+    // 模拟API调用
+    setTimeout(() => {
+      ElMessage.success(isEdit.value ? '设备更新成功' : '设备添加成功')
+      router.push('/device')
+    }, 1000)
   } catch (error) {
     console.error('提交设备数据失败', error)
     ElMessage.error(isEdit.value ? '设备更新失败' : '设备添加失败')
@@ -248,6 +764,56 @@ const submitForm = async () => {
     loading.value = false
   }
 }
+
+// 如果是编辑模式，获取设备详情
+onMounted(() => {
+  if (isEdit.value) {
+    const deviceId = route.params.id
+    
+    // 模拟获取设备详情
+    loading.value = true
+    setTimeout(() => {
+      // 模拟数据
+      Object.assign(deviceForm, {
+        name: '前门摄像头',
+        code: 'CAM-FRONT-001',
+        type: 'CAMERA',
+        model: 'HK-DS2CD2032-I',
+        location: '前门入口',
+        description: '前门安全监控摄像头，24小时工作',
+        ipAddress: '192.168.1.101',
+        port: 554,
+        macAddress: '00:11:22:33:44:55',
+        subnetMask: '255.255.255.0',
+        gateway: '192.168.1.1',
+        dns: '8.8.8.8',
+        connectionType: 'WIRED',
+        username: 'admin',
+        password: '******',
+        authType: 'DIGEST',
+        autoReconnect: true,
+        groupId: 1,
+        area: 'NORTH',
+        tags: ['IMPORTANT', 'OUTDOOR'],
+        status: 1,
+        autoDetect: true,
+        protocol: 'ONVIF',
+        protocolVersion: '2.0',
+        transportProtocol: 'RTSP',
+        dataPath: '/Streaming/Channels/1',
+        resolution: '1920x1080',
+        frameRate: '25fps',
+        bitRate: '4Mbps',
+        imageFormat: 'H.264',
+        ptzControl: true,
+        infrared: true,
+        heartbeatInterval: 30,
+        timeout: 5
+      })
+      loading.value = false
+    }, 500)
+  }
+})
 
 // 重置表单数据
 const resetForm = () => {
@@ -311,7 +877,7 @@ onMounted(() => {
 })
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .device-add-container {
   padding: 6px;
 }
@@ -320,17 +886,179 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  
-  .header-title {
-    font-size: 16px;
-    font-weight: 500;
-  }
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* 步骤条样式 */
+.wizard-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.step-item {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.step-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  color: #909399;
+  margin: 0 auto 8px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.step-text {
+  font-size: 14px;
+  color: #909399;
+}
+
+.step-line {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background-color: var(--el-color-primary);
+  z-index: -1;
+}
+
+/* 活动步骤样式 */
+.step-item.active .step-icon {
+  background-color: var(--el-color-primary);
+  color: #fff;
+}
+
+.step-item.active .step-text {
+  color: var(--el-color-primary);
+  font-weight: bold;
+}
+
+/* 完成步骤样式 */
+.step-item.completed .step-icon {
+  background-color: var(--el-color-success);
+  color: #fff;
+}
+
+/* 表单区域样式 */
+.form-section {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.form-section:last-child {
+  border-bottom: none;
+}
+
+.form-section-title {
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+  display: flex;
+  align-items: center;
+}
+
+.form-section-title .el-icon {
+  margin-right: 6px;
+  font-size: 18px;
+  color: var(--el-color-primary);
+}
+
+/* 模板卡片样式 */
+.template-card {
+  cursor: pointer;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  transition: all 0.3s;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.template-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.template-card.selected {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--el-color-primary-rgb), 0.25);
+}
+
+.template-header {
+  background-color: #f8f9fa;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-body {
+  padding: 15px;
+  font-size: 14px;
+}
+
+.template-body p {
+  margin: 8px 0;
+}
+
+/* 信息确认卡片 */
+.info-card {
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0;
+}
+
+.tag-item {
+  margin-right: 5px;
+}
+
+.device-description {
+  padding: 10px 0;
+  min-height: 60px;
+}
+
+.device-alert {
+  margin-bottom: 20px;
 }
 
 .step-actions {
   margin-top: 30px;
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 20px;
+}
+
+.camera-params {
+  margin-top: 20px;
 }
 </style> 

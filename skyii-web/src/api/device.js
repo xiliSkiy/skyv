@@ -163,4 +163,53 @@ export function batchUpdateDeviceStatus(ids, status) {
     data: ids,
     params: { status }
   })
-} 
+}
+
+/**
+ * 获取设备分组列表
+ * @returns {Promise}
+ */
+export function getDeviceGroups() {
+  return request({
+    url: '/api/device-groups',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取指定分组下的设备列表
+ * @param {Number} groupId 分组ID
+ * @returns {Promise}
+ */
+export function getDevicesByGroupId(groupId) {
+  return request({
+    url: `/api/device-groups/${groupId}/devices`,
+    method: 'get'
+  })
+}
+
+/**
+ * 获取指定类型的设备列表（使用查询参数）
+ * @param {String} type 设备类型
+ * @returns {Promise}
+ */
+export function getDevicesByTypeParam(type) {
+  return request({
+    url: '/api/devices',
+    method: 'get',
+    params: { type }
+  })
+}
+
+/**
+ * 保存任务草稿
+ * @param {Object} data 任务数据
+ * @returns {Promise}
+ */
+export function saveTaskDraft(data) {
+  return request({
+    url: '/api/tasks/draft',
+    method: 'post',
+    data
+  })
+}

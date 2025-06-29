@@ -1,6 +1,7 @@
- package com.skyeye.scheduler.dto;
+package com.skyeye.scheduler.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -11,43 +12,90 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 /**
- * 指标配置数据传输对象
+ * 指标DTO
  */
 @Data
 public class MetricDTO {
     
+    /**
+     * 指标ID
+     */
     private Long id;
     
+    /**
+     * 指标名称
+     */
     @NotBlank(message = "指标名称不能为空")
     @Size(max = 100, message = "指标名称长度不能超过100个字符")
-    private String metricName;
+    private String name;
     
+    /**
+     * 指标编码
+     */
     @NotBlank(message = "指标标识符不能为空")
     @Size(max = 100, message = "指标标识符长度不能超过100个字符")
-    private String metricKey;
+    private String code;
+    
+    /**
+     * 指标描述
+     */
+    private String description;
+    
+    /**
+     * 指标单位
+     */
+    private String unit;
+    
+    /**
+     * 数据类型
+     */
+    private String dataType;
+    
+    /**
+     * 采集方式
+     */
+    @NotBlank(message = "采集方式不能为空")
+    @Size(max = 50, message = "采集方式长度不能超过50个字符")
+    private String collectionMethod;
+    
+    /**
+     * 采集周期（秒）
+     */
+    @NotNull(message = "采集频率不能为空")
+    private Integer collectionInterval;
+    
+    /**
+     * 分类ID
+     */
+    private String categoryId;
+    
+    /**
+     * 分类名称
+     */
+    private String categoryName;
+    
+    /**
+     * 是否为系统指标
+     */
+    private Boolean isSystem;
+    
+    /**
+     * 标签列表
+     */
+    private List<String> tags;
+    
+    /**
+     * 支持的设备类型
+     */
+    private List<String> supportedDeviceTypes;
     
     @NotBlank(message = "指标类型不能为空")
     @Size(max = 50, message = "指标类型长度不能超过50个字符")
     private String metricType;
     
-    private String description;
-    
     private String applicableDeviceType;
     
-    @NotBlank(message = "采集方式不能为空")
-    @Size(max = 50, message = "采集方式长度不能超过50个字符")
-    private String collectionMethod;
-    
-    private String protocolConfig;
-    
-    @NotNull(message = "采集频率不能为空")
-    private Integer collectionInterval;
-    
     private String collectionIntervalUnit = "s";
-    
-    private String dataType = "gauge";
-    
-    private String unit;
     
     private String dataFormat = "default";
     

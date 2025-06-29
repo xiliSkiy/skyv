@@ -64,6 +64,61 @@ const routes = [
         component: () => import('@/views/device/DeviceAdd.vue'),
         meta: { title: '编辑设备', requiresAuth: true, activeMenu: '/device', isEdit: true }
       },
+      // 设备类型管理
+      {
+        path: 'device/types',
+        name: 'DeviceTypes',
+        component: () => import('@/views/device/DeviceTypes.vue'),
+        meta: { title: '设备类型', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备区域管理
+      {
+        path: 'device/areas',
+        name: 'DeviceAreas',
+        component: () => import('@/views/device/DeviceAreas.vue'),
+        meta: { title: '设备区域', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备分组管理
+      {
+        path: 'device/groups',
+        name: 'DeviceGroups',
+        component: () => import('@/views/device/DeviceGroups.vue'),
+        meta: { title: '设备分组', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备标签管理
+      {
+        path: 'device/tags',
+        name: 'DeviceTags',
+        component: () => import('@/views/device/DeviceTags.vue'),
+        meta: { title: '设备标签', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备协议管理
+      {
+        path: 'device/protocols',
+        name: 'DeviceProtocols',
+        component: () => import('@/views/device/DeviceProtocols.vue'),
+        meta: { title: '设备协议', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备模板管理
+      {
+        path: 'device/templates',
+        name: 'DeviceTemplates',
+        component: () => import('@/views/device/DeviceTemplates.vue'),
+        meta: { title: '设备模板', requiresAuth: true, activeMenu: '/device' }
+      },
+      // 设备模板添加/编辑
+      {
+        path: 'device/templates/add',
+        name: 'DeviceTemplateAdd',
+        component: () => import('@/views/device/DeviceTemplateAdd.vue'),
+        meta: { title: '添加模板', requiresAuth: true, activeMenu: '/device/templates' }
+      },
+      {
+        path: 'device/templates/edit/:id',
+        name: 'DeviceTemplateEdit',
+        component: () => import('@/views/device/DeviceTemplateAdd.vue'),
+        meta: { title: '编辑模板', requiresAuth: true, activeMenu: '/device/templates', isEdit: true }
+      },
       {
         path: 'monitoring',
         name: 'Monitoring',
@@ -75,6 +130,30 @@ const routes = [
         name: 'Alerts',
         component: () => import('@/views/alert/AlertList.vue'),
         meta: { title: '报警中心', icon: 'Bell', requiresAuth: true }
+      },
+      {
+        path: 'analytics',
+        name: 'Analytics',
+        component: () => import('@/views/analytics/AnalyticsView.vue'),
+        meta: { title: 'AI增强数据分析', icon: 'DataAnalysis', requiresAuth: true }
+      },
+      {
+        path: 'analytics/test',
+        name: 'AnalyticsTest',
+        component: () => import('@/views/analytics/AnalyticsTest.vue'),
+        meta: { title: 'AI助手测试', requiresAuth: true, activeMenu: '/analytics' }
+      },
+      {
+        path: 'analytics/input-test',
+        name: 'InputTest',
+        component: () => import('@/views/analytics/InputTest.vue'),
+        meta: { title: '输入框测试', requiresAuth: true, activeMenu: '/analytics' }
+      },
+      {
+        path: 'analytics/element-test',
+        name: 'ElementTest',
+        component: () => import('@/views/analytics/ElementTest.vue'),
+        meta: { title: 'Element组件测试', requiresAuth: true, activeMenu: '/analytics' }
       },
       {
         path: 'task',

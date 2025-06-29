@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
+import java.time.LocalDateTime;
 
 /**
  * 设备实体类
@@ -34,6 +35,12 @@ public class Device extends BaseEntity {
      */
     @Column(name = "device_type", nullable = false, length = 50)
     private String type;
+
+    /**
+     * 设备型号
+     */
+    @Column(name = "device_model", length = 100)
+    private String deviceModel;
 
     /**
      * 设备IP地址
@@ -93,5 +100,31 @@ public class Device extends BaseEntity {
      * 最后心跳时间
      */
     @Column(name = "last_heartbeat_time")
-    private java.time.LocalDateTime lastHeartbeatTime;
+    private LocalDateTime lastHeartbeatTime;
+
+    /**
+     * 最后在线时间
+     */
+    @Column(name = "last_online_time")
+    private LocalDateTime lastOnlineTime;
+
+    /**
+     * 设备标签，多个标签用逗号分隔
+     */
+    @Column(name = "tags", length = 255)
+    private String tags;
+
+    /**
+     * 设备名称（用于兼容）
+     */
+    public String getDeviceName() {
+        return this.name;
+    }
+
+    /**
+     * 设备类型（用于兼容）
+     */
+    public String getDeviceType() {
+        return this.type;
+    }
 } 

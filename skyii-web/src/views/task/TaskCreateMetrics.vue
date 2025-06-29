@@ -31,54 +31,217 @@
     </div>
 
     <!-- 指标配置内容 -->
-    <el-row :gutter="20">
-      <el-col :span="16">
-        <!-- 指标列表 -->
-        <el-card class="mb-4">
-          <template #header>
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <el-icon><DataLine /></el-icon> 采集指标配置
-              </div>
-              <div>
-                <el-button type="primary" plain size="small" @click="showAddMetricDialog">
-                  <el-icon><Plus /></el-icon> 添加指标
-                </el-button>
+    <el-card class="metrics-panel">
+      <template #header>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <el-icon><DataLine /></el-icon> 指标配置方式
+          </div>
+        </div>
+      </template>
+      
+      <!-- 配置方式导航标签 -->
+      <el-tabs v-model="activeConfigTab" class="config-tabs">
+        <el-tab-pane label="使用模板" name="template">
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <el-input v-model="templateSearch" placeholder="搜索模板名称或指标..." clearable>
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </div>
+            <div class="col-md-3">
+              <el-select v-model="deviceTypeFilter" placeholder="所有设备类型" style="width: 100%">
+                <el-option label="所有设备类型" value="" />
+                <el-option label="摄像头" value="camera" />
+                <el-option label="传感器" value="sensor" />
+                <el-option label="控制器" value="controller" />
+              </el-select>
+            </div>
+            <div class="col-md-3">
+              <el-select v-model="templateSort" placeholder="排序方式" style="width: 100%">
+                <el-option label="按名称排序" value="name" />
+                <el-option label="按最近使用排序" value="recent" />
+                <el-option label="按指标数量排序" value="count" />
+              </el-select>
+            </div>
+          </div>
+          
+          <div class="row template-list">
+            <div v-for="template in filteredTemplates" :key="template.id" class="col-md-4 mb-4">
+              <div 
+                class="template-card" 
+                :class="{ selected: selectedTemplate === template.id }"
+                @click="selectTemplate(template)"
+              >
+                <div class="template-header">
+                  <div class="template-title">{{ template.name }}</div>
+                  <div class="template-metrics">{{ template.metricCount || 0 }}个指标</div>
+                  <div class="template-tags">
+                    <el-tag size="small" v-for="tag in template.tags" :key="tag" class="me-1">{{ tag }}</el-tag>
+                  </div>
+                  <i :class="['template-icon', 'fas', getTemplateIcon(template.category)]"></i>
+                </div>
+                <div class="template-body">
+                  <div class="small text-muted mb-3">{{ template.description || '暂无描述' }}</div>
+                  <ul class="small ps-3 mb-0">
+                    <li v-for="(metric, index) in template.metrics?.slice(0, 5)" :key="index">
+                      {{ metric.name || metric.metricName }}
+                    </li>
+                    <li v-if="template.metrics?.length > 5">...</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </template>
-
-          <div v-if="metrics.length === 0" class="empty-metrics">
-            <el-empty description="暂无指标配置">
-              <el-button type="primary" @click="showAddMetricDialog">添加指标</el-button>
-            </el-empty>
           </div>
-
-          <DraggableMetrics
-            v-else
-            v-model="metrics"
-            @end="handleDragEnd"
+          
+          <el-alert
+            v-if="selectedTemplate"
+            type="info"
+            show-icon
+            :closable="false"
+            class="mt-2"
           >
-            <template #item="{element}">
-              <div class="metric-card">
-                <div class="metric-header">
-                  <div>
-                    <h5 class="mb-0">{{ element.name }}</h5>
-                    <el-tag size="small" :type="getMetricTypeTag(element.type)" class="me-1">
-                      {{ getMetricTypeLabel(element.type) }}
-                    </el-tag>
-                    <small class="text-muted">适用于: {{ element.deviceCount }}台{{ getDeviceTypeLabel(element.deviceType) }}</small>
+            <template #title>
+              <strong>已选择"{{ getSelectedTemplateName() }}"模板</strong>
+            </template>
+            <p class="mb-0">该模板包含{{ getSelectedTemplateMetricCount() }}个指标，将应用于所有{{ getSelectedDeviceCount() }}台已选设备。您可以在下一步中调整采集频率和报警阈值。</p>
+          </el-alert>
+        </el-tab-pane>
+        
+        <el-tab-pane label="自定义配置" name="custom">
+          <div class="row">
+            <!-- 左侧指标选择 -->
+            <div class="col-md-5">
+              <el-card class="border-0 mb-3">
+                <template #header>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span><el-icon><List /></el-icon> 可用指标</span>
+                    <el-input
+                      v-model="metricSearch"
+                      placeholder="搜索指标..."
+                      size="small"
+                      style="width: 200px"
+                      clearable
+                    >
+                      <template #prefix>
+                        <el-icon><Search /></el-icon>
+                      </template>
+                    </el-input>
                   </div>
-                  <div>
-                    <el-icon class="drag-handle me-2"><ArrowUp /><ArrowDown /></el-icon>
-                    <el-button plain size="small" circle @click="editMetric(element)">
-                      <el-icon><Setting /></el-icon>
-                    </el-button>
-                    <el-button plain size="small" circle type="danger" @click="removeMetric(element)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
+                </template>
+                
+                <div class="metrics-list">
+                  <!-- 指标分组 -->
+                  <div v-for="(group, groupName) in groupedAvailableMetrics" :key="groupName">
+                    <div class="list-group-item bg-light">
+                      <el-icon><InfoCircle /></el-icon> {{ groupName }}
+                    </div>
+                    
+                    <div 
+                      v-for="metric in group" 
+                      :key="metric.id"
+                      class="metric-item"
+                      :class="{ selected: isMetricSelected(metric.id) }"
+                    >
+                      <div class="metric-header">
+                        <div class="metric-title">
+                          <el-icon :class="getMetricIcon(metric.type)"></el-icon> {{ metric.name }}
+                        </div>
+                        <span class="metric-type" :class="getMetricTypeClass(metric.type)">
+                          {{ getMetricTypeLabel(metric.type) }}
+                        </span>
+                      </div>
+                      <div class="metric-description">
+                        {{ metric.description || '暂无描述' }}
+                      </div>
+                      <div class="metric-details">
+                        <span class="metric-detail-item">
+                          <el-icon><Tag /></el-icon> {{ getMetricCategoryLabel(metric.category) }}
+                        </span>
+                        <span class="metric-detail-item">
+                          <el-icon><Clock /></el-icon> 默认间隔: {{ metric.defaultInterval || '5分钟' }}
+                        </span>
+                        <span v-if="metric.unit" class="metric-detail-item">
+                          <el-icon><Ruler /></el-icon> 单位: {{ metric.unit }}
+                        </span>
+                      </div>
+                      <div class="d-flex justify-content-end mt-2">
+                        <el-button 
+                          v-if="!isMetricSelected(metric.id)"
+                          type="primary" 
+                          size="small"
+                          @click="addMetricFromAvailable(metric)"
+                        >
+                          <el-icon><Plus /></el-icon> 添加
+                        </el-button>
+                        <el-button 
+                          v-else
+                          type="danger" 
+                          size="small"
+                          @click="removeMetricById(metric.id)"
+                        >
+                          <el-icon><Minus /></el-icon> 移除
+                        </el-button>
+                      </div>
+                    </div>
                   </div>
                 </div>
+              </el-card>
+            </div>
+            
+            <!-- 右侧已选指标配置 -->
+            <div class="col-md-7">
+              <el-card class="border-0">
+                <template #header>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span>
+                      <el-icon><Check /></el-icon> 已选指标配置 ({{ metrics.length }}/10)
+                    </span>
+                    <el-button 
+                      v-if="metrics.length > 0"
+                      type="danger" 
+                      size="small"
+                      plain
+                      @click="clearAllMetrics"
+                    >
+                      <el-icon><Delete /></el-icon> 清除所有选择
+                    </el-button>
+                  </div>
+                </template>
+                
+                <div v-if="metrics.length === 0" class="empty-metrics">
+                  <el-empty description="暂无指标配置">
+                    <el-button type="primary" @click="showAddMetricDialog">添加指标</el-button>
+                  </el-empty>
+                </div>
+                
+                <DraggableMetrics
+                  v-else
+                  v-model="metrics"
+                  @end="handleDragEnd"
+                >
+                  <template #item="{element}">
+                    <div class="metric-card">
+                      <div class="metric-header">
+                        <div>
+                          <h5 class="mb-0">{{ element.name }}</h5>
+                          <el-tag size="small" :type="getMetricTypeTag(element.type)" class="me-1">
+                            {{ getMetricTypeLabel(element.type) }}
+                          </el-tag>
+                          <small class="text-muted">适用于: {{ element.deviceCount }}台{{ getDeviceTypeLabel(element.deviceType) }}</small>
+                        </div>
+                        <div>
+                          <el-icon class="drag-handle me-2"><ArrowUp /><ArrowDown /></el-icon>
+                          <el-button plain size="small" circle @click="editMetric(element)">
+                            <el-icon><Setting /></el-icon>
+                          </el-button>
+                          <el-button plain size="small" circle type="danger" @click="removeMetric(element)">
+                            <el-icon><Delete /></el-icon>
+                          </el-button>
+                        </div>
+                      </div>
                 
                 <div class="metric-body mt-3">
                   <!-- 人脸识别指标 -->
@@ -227,80 +390,106 @@
         </el-card>
       </el-col>
 
-      <el-col :span="8">
-        <!-- 指标模板 -->
-        <el-card class="mb-4">
-          <template #header>
-            <div>
-              <el-icon><Collection /></el-icon> 指标模板
-            </div>
-          </template>
-
-          <el-input
-            v-model="templateSearch"
-            placeholder="搜索模板..."
-            clearable
-            class="mb-3"
-          />
-
-          <h6 class="mb-2">视频分析</h6>
-          <div
-            v-for="template in filteredVideoTemplates"
-            :key="template.id"
-            class="template-card"
-            :class="{ selected: selectedTemplate === template.id }"
-            @click="selectTemplate(template)"
-          >
-            <h6 class="mb-1">{{ template.name }}</h6>
-            <el-tag size="small" type="info" class="me-1">视频分析</el-tag>
-            <p class="small text-muted mb-0 mt-1">{{ template.description }}</p>
+                <div class="collection-settings mt-3">
+                  <div class="row mb-3">
+                    <div class="col-md-6">
+                      <label class="form-label">采集方式</label>
+                      <el-select v-model="element.config.collectionMethod" style="width: 100%">
+                        <el-option label="轮询获取" value="polling" />
+                        <el-option label="定时采集" value="scheduled" />
+                        <el-option label="变化触发" value="event" />
+                      </el-select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">采集频率</label>
+                      <el-select v-model="element.config.frequency" style="width: 100%">
+                        <el-option label="每分钟" value="1m" />
+                        <el-option label="每5分钟" value="5m" />
+                        <el-option label="每15分钟" value="15m" />
+                        <el-option label="每30分钟" value="30m" />
+                        <el-option label="每小时" value="1h" />
+                      </el-select>
+                    </div>
+                  </div>
+                  
+                  <!-- 阈值配置 -->
+                  <div class="threshold-config">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <label class="form-label mb-0">报警阈值设置</label>
+                      <el-switch v-model="element.config.enableAlert" active-text="启用报警" />
+                    </div>
+                    
+                    <template v-if="element.config.enableAlert">
+                      <div class="mt-3">
+                        <label class="form-label">阈值范围</label>
+                        <div class="threshold-ranges">
+                          <div class="threshold-range range-normal"></div>
+                          <div class="threshold-range range-warning"></div>
+                          <div class="threshold-range range-danger"></div>
+                        </div>
+                        <div class="threshold-labels">
+                          <span>{{ getMinThreshold(element) }}</span>
+                          <span>{{ getLowThreshold(element) }}</span>
+                          <span>{{ getMidThreshold(element) }}</span>
+                          <span>{{ getHighThreshold(element) }}</span>
+                          <span>{{ getMaxThreshold(element) }}</span>
+                        </div>
+                      </div>
+                      
+                      <div class="row mt-3">
+                        <div class="col-md-4">
+                          <label class="form-label small">正常范围</label>
+                          <div class="input-group">
+                            <el-input-number v-model="element.config.normalMin" :min="getMinPossibleValue(element)" :max="element.config.normalMax" size="small" />
+                            <span class="input-group-text">-</span>
+                            <el-input-number v-model="element.config.normalMax" :min="element.config.normalMin" :max="getMaxPossibleValue(element)" size="small" />
+                            <span class="input-group-text">{{ getMetricUnit(element) }}</span>
+                          </div>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small">报警等级</label>
+                          <el-select v-model="element.config.alertLevel" style="width: 100%" size="small">
+                            <el-option label="低 - 仅记录" value="low" />
+                            <el-option label="中 - 通知" value="medium" />
+                            <el-option label="高 - 警报" value="high" />
+                            <el-option label="紧急 - 联动" value="urgent" />
+                          </el-select>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small">报警延迟</label>
+                          <el-select v-model="element.config.alertDelay" style="width: 100%" size="small">
+                            <el-option label="立即报警" value="immediate" />
+                            <el-option label="连续2次超过阈值" value="2_times" />
+                            <el-option label="连续3次超过阈值" value="3_times" />
+                            <el-option label="超过5分钟" value="5_minutes" />
+                          </el-select>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </DraggableMetrics>
+          
+          <!-- 批量设置 -->
+          <div v-if="metrics.length > 0" class="d-flex justify-content-between align-items-center mt-4">
+            <el-button plain @click="showBatchConfigDialog">
+              <el-icon><Setting /></el-icon> 批量配置所有指标
+            </el-button>
+            <el-button type="success" @click="showAddMetricDialog">
+              <el-icon><Plus /></el-icon> 添加自定义指标
+            </el-button>
           </div>
-
-          <h6 class="mb-2 mt-3">传感器数据</h6>
-          <div
-            v-for="template in filteredSensorTemplates"
-            :key="template.id"
-            class="template-card"
-            :class="{ selected: selectedTemplate === template.id }"
-            @click="selectTemplate(template)"
-          >
-            <h6 class="mb-1">{{ template.name }}</h6>
-            <el-tag size="small" type="primary" class="me-1">传感器数据</el-tag>
-            <p class="small text-muted mb-0 mt-1">{{ template.description }}</p>
-          </div>
-
-          <h6 class="mb-2 mt-3">自定义指标</h6>
-          <el-button plain size="small" class="w-100" @click="showAddMetricDialog">
-            <el-icon><Plus /></el-icon> 创建自定义指标
-          </el-button>
         </el-card>
-
-        <!-- 快速提示 -->
-        <el-card>
-          <template #header>
-            <div>
-              <el-icon><InfoFilled /></el-icon> 配置建议
-            </div>
-          </template>
-
-          <ul class="small mb-0">
-            <li class="mb-2">对于高优先级任务，建议设置更高的采样频率</li>
-            <li class="mb-2">视频分析类指标会消耗更多计算资源，请按需配置</li>
-            <li class="mb-2">可以拖拽调整指标的优先级顺序</li>
-            <li>可以为不同类型的设备配置差异化的指标参数</li>
-          </ul>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 底部按钮 -->
-    <div class="action-footer d-flex justify-content-end mt-4">
-      <el-button @click="prevStep" class="me-2">
-        <el-icon class="el-icon--left"><ArrowLeft /></el-icon> 上一步
-      </el-button>
-      <el-button type="primary" @click="nextStep">
-        下一步 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-      </el-button>
+      </div>
+    </div>
+    
+        <!-- 已选指标计数器 -->
+    <div class="selected-metrics-counter" v-if="metrics.length > 0">
+      <el-icon><Check /></el-icon>
+      <span class="number">{{ metrics.length }}</span> 已选指标
+      <el-button size="small" @click="nextStep">下一步</el-button>
     </div>
 
     <!-- 添加指标对话框 -->
@@ -361,7 +550,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Close, DataLine, Plus, Collection, InfoFilled, Setting, Delete, 
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search, List, Check, Tag, Clock, Ruler, 
+  InfoCircle, Minus } from '@element-plus/icons-vue'
 import { getMetricTemplates, saveTaskDraft } from '@/api/task'
 import DraggableMetrics from '@/components/DraggableMetrics.vue'
 
@@ -397,26 +587,51 @@ const newMetric = reactive({
   config: {}
 })
 
-// 过滤后的视频模板
-const filteredVideoTemplates = computed(() => {
+// 新增配置选项
+const activeConfigTab = ref('template')
+const deviceTypeFilter = ref('')
+const templateSort = ref('name')
+const metricSearch = ref('')
+
+// 过滤后的模板
+const filteredTemplates = computed(() => {
   return templates.value
-    .filter(t => t.category === 'video')
-    .filter(t => 
-      templateSearch.value === '' || 
-      t.name.toLowerCase().includes(templateSearch.value.toLowerCase()) ||
-      t.description.toLowerCase().includes(templateSearch.value.toLowerCase())
-    )
+    .filter(t => {
+      if (deviceTypeFilter.value && t.deviceType !== deviceTypeFilter.value) {
+        return false
+      }
+      return templateSearch.value === '' || 
+        t.name?.toLowerCase().includes(templateSearch.value.toLowerCase()) ||
+        t.description?.toLowerCase().includes(templateSearch.value.toLowerCase())
+    })
+    .sort((a, b) => {
+      if (templateSort.value === 'name') {
+        return a.name?.localeCompare(b.name)
+      } else if (templateSort.value === 'recent') {
+        return (b.lastUsed || 0) - (a.lastUsed || 0)
+      } else if (templateSort.value === 'count') {
+        return (b.metricCount || 0) - (a.metricCount || 0)
+      }
+      return 0
+    })
 })
 
-// 过滤后的传感器模板
-const filteredSensorTemplates = computed(() => {
-  return templates.value
-    .filter(t => t.category === 'sensor')
-    .filter(t => 
-      templateSearch.value === '' || 
-      t.name.toLowerCase().includes(templateSearch.value.toLowerCase()) ||
-      t.description.toLowerCase().includes(templateSearch.value.toLowerCase())
-    )
+// 分组后的可用指标
+const groupedAvailableMetrics = computed(() => {
+  const groups = {}
+  const availableMetrics = templates.value.flatMap(t => t.metrics || [])
+  
+  availableMetrics.forEach(metric => {
+    const groupName = getMetricCategoryLabel(metric.category || 'other')
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+    if (!groups[groupName].find(m => m.id === metric.id)) {
+      groups[groupName].push(metric)
+    }
+  })
+  
+  return groups
 })
 
 // 获取模板数据
@@ -453,6 +668,146 @@ const selectTemplate = (template) => {
   
   // 打开添加对话框
   showAddMetricDialog()
+}
+
+// 获取选中模板名称
+const getSelectedTemplateName = () => {
+  const template = templates.value.find(t => t.id === selectedTemplate.value)
+  return template ? template.name : '未知模板'
+}
+
+// 获取选中模板指标数量
+const getSelectedTemplateMetricCount = () => {
+  const template = templates.value.find(t => t.id === selectedTemplate.value)
+  return template ? (template.metricCount || template.metrics?.length || 0) : 0
+}
+
+// 获取选中设备数量
+const getSelectedDeviceCount = () => {
+  const taskData = JSON.parse(localStorage.getItem('taskCreateData') || '{}')
+  return taskData.devices?.length || 0
+}
+
+// 获取模板图标
+const getTemplateIcon = (category) => {
+  const iconMap = {
+    'video': 'fa-video',
+    'sensor': 'fa-thermometer-half',
+    'system': 'fa-server',
+    'network': 'fa-network-wired'
+  }
+  return iconMap[category] || 'fa-chart-line'
+}
+
+// 获取指标图标
+const getMetricIcon = (type) => {
+  const iconMap = {
+    'face_recognition': 'face',
+    'object_detection': 'aim',
+    'temperature_humidity': 'thermometer',
+    'energy_consumption': 'lightning',
+    'air_quality': 'wind'
+  }
+  return iconMap[type] || 'data-line'
+}
+
+// 获取指标类型样式
+const getMetricTypeClass = (type) => {
+  if (type?.includes('recognition') || type?.includes('detection') || type?.includes('analysis')) {
+    return 'type-status'
+  }
+  return 'type-number'
+}
+
+// 获取指标单位
+const getMetricUnit = (metric) => {
+  const unitMap = {
+    'temperature_humidity': '°C/%',
+    'energy_consumption': 'kWh',
+    'air_quality': 'ppm'
+  }
+  return unitMap[metric.type] || ''
+}
+
+// 获取指标分类标签
+const getMetricCategoryLabel = (category) => {
+  const categoryMap = {
+    'video': '视频分析',
+    'sensor': '传感器数据',
+    'system': '系统性能',
+    'network': '网络状态',
+    'other': '其他指标'
+  }
+  return categoryMap[category] || '其他指标'
+}
+
+// 检查指标是否已选择
+const isMetricSelected = (metricId) => {
+  return metrics.value.some(m => m.id === metricId)
+}
+
+// 从可用指标添加
+const addMetricFromAvailable = (metric) => {
+  // 创建配置对象
+  const config = createDefaultConfig(metric.type)
+  
+  // 创建新指标
+  const newMetric = {
+    id: metric.id,
+    name: metric.name,
+    metricName: metric.name,
+    type: metric.type,
+    metricType: metric.type,
+    deviceType: metric.deviceType || 'sensor',
+    description: metric.description,
+    deviceCount: getSelectedDeviceCount(),
+    config
+  }
+  
+  metrics.value.push(newMetric)
+  ElMessage.success(`已添加指标: ${metric.name}`)
+}
+
+// 根据ID移除指标
+const removeMetricById = (metricId) => {
+  metrics.value = metrics.value.filter(m => m.id !== metricId)
+  ElMessage.success('已移除指标')
+}
+
+// 清除所有指标
+const clearAllMetrics = () => {
+  ElMessageBox.confirm('确认清除所有已选指标吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    metrics.value = []
+    ElMessage.success('已清除所有指标')
+  }).catch(() => {})
+}
+
+// 显示批量配置对话框
+const showBatchConfigDialog = () => {
+  ElMessage.info('批量配置功能开发中')
+}
+
+// 获取阈值范围
+const getMinThreshold = (element) => '0'
+const getLowThreshold = (element) => '25'
+const getMidThreshold = (element) => '50'
+const getHighThreshold = (element) => '75'
+const getMaxThreshold = (element) => '100'
+
+// 获取可能的最小值
+const getMinPossibleValue = (element) => {
+  if (element.type === 'temperature_humidity') return -50
+  return 0
+}
+
+// 获取可能的最大值
+const getMaxPossibleValue = (element) => {
+  if (element.type === 'temperature_humidity') return 100
+  return 100
 }
 
 // 显示添加指标对话框

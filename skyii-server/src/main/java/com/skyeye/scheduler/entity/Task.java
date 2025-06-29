@@ -139,6 +139,30 @@ public class Task extends BaseEntity {
     private String collectParams;
     
     /**
+     * 是否启用报警
+     */
+    @Column(name = "enable_alert")
+    private Boolean enableAlert = false;
+    
+    /**
+     * 报警级别：info, warning, error, critical
+     */
+    @Column(name = "alert_level", length = 20)
+    private String alertLevel;
+    
+    /**
+     * 报警通知方式（逗号分隔）：email, sms, webhook, etc.
+     */
+    @Column(name = "alert_notify_types", length = 100)
+    private String alertNotifyTypes;
+    
+    /**
+     * 报警通知接收人ID（逗号分隔）
+     */
+    @Column(name = "alert_receivers", length = 255)
+    private String alertReceivers;
+    
+    /**
      * 采集器关联
      */
     @ManyToOne(fetch = FetchType.LAZY)

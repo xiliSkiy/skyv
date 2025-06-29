@@ -58,7 +58,6 @@
               <el-select v-model="taskForm.taskType" placeholder="选择任务类型" style="width: 100%">
                 <el-option label="实时采集" value="realtime" />
                 <el-option label="定时采集" value="scheduled" />
-                <el-option label="周期采集" value="periodic" />
                 <el-option label="触发式采集" value="triggered" />
               </el-select>
             </el-form-item>
@@ -87,28 +86,31 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="任务标签">
-              <el-tag
-                v-for="tag in taskForm.tags"
-                :key="tag"
-                closable
-                :disable-transitions="false"
-                @close="handleTagClose(tag)"
-                class="tag-item"
-              >
-                {{ tag }}
-              </el-tag>
-              <el-input
-                v-if="inputTagVisible"
-                ref="tagInputRef"
-                v-model="inputTagValue"
-                class="tag-input"
-                size="small"
-                @keyup.enter="handleTagConfirm"
-                @blur="handleTagConfirm"
-              />
-              <el-button v-else class="tag-button" plain size="small" @click="showTagInput">
-                + 添加标签
-              </el-button>
+              <div class="tag-input-container">
+                <el-tag
+                  v-for="tag in taskForm.tags"
+                  :key="tag"
+                  closable
+                  :disable-transitions="false"
+                  @close="handleTagClose(tag)"
+                  class="tag-item"
+                >
+                  {{ tag }}
+                </el-tag>
+                <el-input
+                  v-if="inputTagVisible"
+                  ref="tagInputRef"
+                  v-model="inputTagValue"
+                  class="tag-input"
+                  size="small"
+                  @keyup.enter="handleTagConfirm"
+                  @blur="handleTagConfirm"
+                  placeholder="添加标签..."
+                />
+                <el-button v-else class="tag-button" plain size="small" @click="showTagInput">
+                  + 添加标签
+                </el-button>
+              </div>
               <div class="form-text">标签用于分类和快速筛选</div>
             </el-form-item>
           </el-col>
@@ -408,6 +410,16 @@ onMounted(() => {
 
 .card-header .el-icon {
   margin-right: 8px;
+}
+
+.tag-input-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 5px 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  min-height: 38px;
 }
 
 .tag-item {

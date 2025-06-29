@@ -68,6 +68,7 @@
 
 ### 4.2 API响应格式
 
+- 优先使用Result.java对象：skyii-server\src\main\java\com\skyeye\common\response\Result.java
 ```json
 {
     "code": 200,

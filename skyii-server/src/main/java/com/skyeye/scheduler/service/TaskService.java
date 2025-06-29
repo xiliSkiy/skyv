@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -275,4 +276,140 @@ public interface TaskService {
      * @return 是否成功
      */
     boolean triggerTask(Long taskId, Long triggerId);
+
+    /**
+     * 保存任务基本信息
+     * @param taskBasicInfo 任务基本信息
+     * @return 任务ID
+     */
+    Long saveBasicInfo(TaskBasicInfoDTO taskBasicInfo);
+
+    /**
+     * 获取设备类型树
+     * @return 设备类型树
+     */
+    List<DeviceTypeTreeDTO> getDeviceTypeTree();
+
+    /**
+     * 根据设备类型获取设备列表
+     * @param typeId 设备类型ID
+     * @param queryDTO 查询条件
+     * @return 设备分页列表
+     */
+    Page<TaskDeviceDTO> getDevicesByType(String typeId, TaskDeviceQueryDTO queryDTO);
+
+    /**
+     * 获取区域列表
+     * @return 区域列表
+     */
+    List<AreaDTO> getAreaList();
+
+    /**
+     * 根据区域获取设备列表
+     * @param areaId 区域ID
+     * @param queryDTO 查询条件
+     * @return 设备分页列表
+     */
+    Page<TaskDeviceDTO> getDevicesByArea(String areaId, TaskDeviceQueryDTO queryDTO);
+
+    /**
+     * 获取所有标签
+     * @return 标签列表
+     */
+    List<String> getAllTags();
+
+    /**
+     * 根据标签获取设备列表
+     * @param tags 标签列表
+     * @param tagOperator 标签操作符（AND/OR）
+     * @param queryDTO 查询条件
+     * @return 设备分页列表
+     */
+    Page<TaskDeviceDTO> getDevicesByTags(List<String> tags, String tagOperator, TaskDeviceQueryDTO queryDTO);
+
+    /**
+     * 保存任务设备选择
+     * @param taskId 任务ID
+     * @param deviceIds 设备ID列表
+     * @return 是否成功
+     */
+    boolean saveTaskDeviceSelection(Long taskId, List<Long> deviceIds);
+
+    /**
+     * 获取任务已选设备
+     * @param taskId 任务ID
+     * @return 已选设备列表
+     */
+    List<TaskDeviceDTO> getSelectedDevices(Long taskId);
+
+    /**
+     * 获取设备类型统计
+     * @param deviceIds 设备ID列表
+     * @return 类型统计数据
+     */
+    Map<String, Integer> getDeviceTypeStats(List<Long> deviceIds);
+
+    /**
+     * 获取设备状态统计
+     * @param deviceIds 设备ID列表
+     * @return 状态统计数据
+     */
+    Map<String, Integer> getDeviceStatusStats(List<Long> deviceIds);
+
+    /**
+     * 获取指标分类列表
+     * @return 指标分类列表
+     */
+    List<MetricCategoryDTO> getMetricCategories();
+
+    /**
+     * 根据分类获取指标列表
+     * @param categoryId 分类ID
+     * @return 指标列表
+     */
+    List<MetricDTO> getMetricsByCategory(String categoryId);
+
+    /**
+     * 搜索指标
+     * @param keyword 关键词
+     * @return 指标列表
+     */
+    List<MetricDTO> searchMetrics(String keyword);
+
+    /**
+     * 保存任务指标配置
+     * @param taskId 任务ID
+     * @param metricIds 指标ID列表
+     * @return 是否成功
+     */
+    boolean saveTaskMetrics(Long taskId, List<Long> metricIds);
+
+    /**
+     * 获取任务已选指标
+     * @param taskId 任务ID
+     * @return 已选指标列表
+     */
+    List<MetricDTO> getSelectedMetrics(Long taskId);
+
+    /**
+     * 保存任务调度设置
+     * @param taskId 任务ID
+     * @param scheduleDTO 调度设置
+     * @return 是否成功
+     */
+    boolean saveTaskSchedule(Long taskId, TaskScheduleDTO scheduleDTO);
+
+    /**
+     * 获取任务调度设置
+     * @param taskId 任务ID
+     * @return 调度设置
+     */
+    TaskScheduleDTO getTaskSchedule(Long taskId);
+
+    /**
+     * 提交并完成任务创建
+     * @param taskId 任务ID
+     * @return 完成的任务信息
+     */
+    TaskDTO completeTaskCreation(Long taskId);
 } 

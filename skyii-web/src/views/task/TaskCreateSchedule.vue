@@ -37,149 +37,366 @@
         <el-card class="mb-4">
           <template #header>
             <div>
-              <el-icon><Calendar /></el-icon> 调度类型
+              <el-icon><Calendar /></el-icon> 任务调度设置
             </div>
           </template>
-
-          <!-- 实时执行 -->
-          <div 
-            class="schedule-option" 
-            :class="{ active: scheduleForm.scheduleType === 'realtime' }"
-            @click="selectScheduleType('realtime')"
-          >
-            <el-radio v-model="scheduleForm.scheduleType" label="realtime">
-              <span class="fw-bold">实时执行</span>
-            </el-radio>
-            <div class="ms-4 mt-2">
-              <p class="text-muted mb-0">任务将立即开始执行，持续采集数据直到手动停止</p>
-            </div>
-          </div>
-
-          <!-- 定时执行 -->
-          <div 
-            class="schedule-option" 
-            :class="{ active: scheduleForm.scheduleType === 'scheduled' }"
-            @click="selectScheduleType('scheduled')"
-          >
-            <el-radio v-model="scheduleForm.scheduleType" label="scheduled">
-              <span class="fw-bold">定时执行</span>
-            </el-radio>
-            <div class="ms-4">
-              <p class="text-muted mb-3">在指定的时间执行任务，可设置重复周期</p>
-              
-              <div class="mb-3">
-                <el-form-item label="执行频率">
-                  <el-select v-model="scheduleForm.frequency" style="width: 100%">
-                    <el-option label="单次执行" value="once" />
-                    <el-option label="每天" value="daily" />
-                    <el-option label="每周" value="weekly" />
-                    <el-option label="每月" value="monthly" />
-                    <el-option label="自定义" value="custom" />
-                  </el-select>
-                </el-form-item>
+          
+          <!-- 配置方式导航标签 -->
+          <el-tabs v-model="activeTab" class="demo-tabs">
+            <el-tab-pane label="时间调度" name="time">
+              <el-icon><Clock /></el-icon> 时间调度
+            </el-tab-pane>
+            <el-tab-pane label="事件触发" name="event">
+              <el-icon><Bolt /></el-icon> 事件触发
+            </el-tab-pane>
+            <el-tab-pane label="手动执行" name="manual">
+              <el-icon><HandPointer /></el-icon> 手动执行
+            </el-tab-pane>
+          </el-tabs>
+          
+          <!-- 时间调度内容 -->
+          <div v-if="activeTab === 'time'">
+            <!-- 简单调度 -->
+            <div 
+              class="schedule-option" 
+              :class="{ active: scheduleForm.scheduleType === 'simple' }"
+              @click="selectScheduleType('simple')"
+            >
+              <el-radio v-model="scheduleForm.scheduleType" label="simple">
+                <span class="fw-bold">简单调度</span>
+              </el-radio>
+                <div class="ms-4 mt-3">
+                  <el-row :gutter="20" class="mb-3">
+                    <el-col :span="8">
+                      <el-form-item label="执行频率">
+                        <el-select v-model="scheduleForm.simpleFrequency" @change="updateIntervalUnit">
+                          <el-option label="分钟" value="minute" />
+                          <el-option label="小时" value="hour" />
+                          <el-option label="天" value="day" />
+                          <el-option label="周" value="week" />
+                          <el-option label="月" value="month" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="间隔">
+                        <el-input-number v-model="scheduleForm.simpleInterval" :min="1" :max="100" />
+                        <span class="ms-2">{{getIntervalUnitText()}}</span>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="开始时间">
+                        <el-date-picker
+                          v-model="scheduleForm.startDateTime"
+                          type="datetime"
+                          placeholder="选择日期时间"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  <el-form-item>
+                    <el-switch
+                      v-model="scheduleForm.noEndTime"
+                      active-text="无结束时间"
+                    />
+                  </el-form-item>
+                </div>
               </div>
               
-              <div class="mb-3">
-                <el-form-item label="执行时间">
-                  <el-time-picker
-                    v-model="scheduleForm.scheduleTime"
-                    format="HH:mm"
-                    placeholder="选择时间"
-                    style="width: 100%"
+              <!-- Cron表达式 -->
+              <div 
+                class="schedule-option" 
+                :class="{ active: scheduleForm.scheduleType === 'cron' }"
+                @click="selectScheduleType('cron')"
+              >
+                <el-radio v-model="scheduleForm.scheduleType" label="cron">
+                  <span class="fw-bold">Cron 表达式</span>
+                </el-radio>
+                <div class="ms-4 mt-3">
+                  <el-alert
+                    type="info"
+                    :closable="false"
+                    show-icon
+                  >
+                    <template #default>
+                      Cron表达式提供更灵活的调度设置，适用于复杂的调度需求。
+                    </template>
+                  </el-alert>
+                  
+                  <el-row :gutter="20" class="mt-3">
+                    <el-col :span="12">
+                      <el-form-item label="Cron 表达式">
+                        <div class="d-flex">
+                          <el-input v-model="scheduleForm.cronExpression" placeholder="0 0 * * * ?" />
+                          <el-button class="ms-2">验证</el-button>
+                        </div>
+                        <div class="form-text">示例: 0 0 */1 * * ? (每小时执行一次)</div>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="执行说明">
+                        <div class="border rounded p-2 bg-light">
+                          <p class="mb-0 small">当前表达式将在每小时整点执行，例如：08:00, 09:00, 10:00...</p>
+                        </div>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </div>
+              </div>
+              
+              <!-- 日历调度 -->
+              <div 
+                class="schedule-option" 
+                :class="{ active: scheduleForm.scheduleType === 'calendar' }"
+                @click="selectScheduleType('calendar')"
+              >
+                <el-radio v-model="scheduleForm.scheduleType" label="calendar">
+                  <span class="fw-bold">日历调度</span>
+                </el-radio>
+                <div class="ms-4 mt-3">
+                  <el-row :gutter="20" class="mb-3">
+                    <el-col :span="12">
+                      <el-form-item label="选择日期和时间">
+                        <div class="d-flex flex-wrap gap-2 border rounded p-3">
+                          <el-checkbox v-model="scheduleForm.weekdays" label="1">星期一</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="2">星期二</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="3">星期三</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="4">星期四</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="5">星期五</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="6">星期六</el-checkbox>
+                          <el-checkbox v-model="scheduleForm.weekdays" label="0">星期日</el-checkbox>
+                        </div>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  
+                  <el-row :gutter="20">
+                    <el-col :span="6">
+                      <el-form-item label="执行时间">
+                        <div class="d-flex align-items-center">
+                          <el-time-picker
+                            v-model="scheduleForm.execTime"
+                            format="HH:mm"
+                            placeholder="选择时间"
+                          />
+                          <el-button class="ms-2" size="small">
+                            <el-icon><Plus /></el-icon>
+                          </el-button>
+                        </div>
+                        
+                        <div class="mt-2">
+                          <el-tag 
+                            v-for="(time, index) in scheduleForm.execTimes" 
+                            :key="index"
+                            closable
+                            @close="removeExecTime(index)"
+                            class="me-1 mb-1"
+                          >
+                            {{ formatTime(time) }}
+                          </el-tag>
+                        </div>
+                      </el-form-item>
+                    </el-col>
+                    
+                    <el-col :span="18">
+                      <el-form-item label="预览下次执行时间">
+                        <div class="border rounded p-2 bg-light" style="height: 120px; overflow-y: auto;">
+                          <ul class="mb-0 small ps-3">
+                            <li v-for="(time, index) in previewTimes" :key="index">
+                              {{ time }}
+                            </li>
+                          </ul>
+                        </div>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          
+          <!-- 事件触发内容 -->
+          <div v-if="activeTab === 'event'">
+            <el-alert
+              type="info"
+              :closable="false"
+              show-icon
+              class="mb-4"
+            >
+              <template #default>
+                事件触发允许您根据系统事件自动执行任务，例如设备上线、报警触发等条件。
+              </template>
+            </el-alert>
+            
+            <!-- 设备状态事件 -->
+            <div 
+              class="schedule-option" 
+              :class="{ active: scheduleForm.eventType === 'device' }"
+              @click="selectEventType('device')"
+            >
+              <el-radio v-model="scheduleForm.eventType" label="device">
+                <span class="fw-bold">设备状态事件</span>
+              </el-radio>
+              <div class="ms-4 mt-3">
+                <el-row :gutter="20" class="mb-3">
+                  <el-col :span="8">
+                    <el-form-item label="触发条件">
+                      <el-select v-model="scheduleForm.deviceTrigger" style="width: 100%">
+                        <el-option label="设备上线时" value="online" />
+                        <el-option label="设备离线时" value="offline" />
+                        <el-option label="设备重启后" value="restart" />
+                        <el-option label="设备固件更新后" value="update" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="应用于">
+                      <el-select v-model="scheduleForm.deviceScope" style="width: 100%">
+                        <el-option label="所有已选设备" value="all" />
+                        <el-option label="部分设备（自定义选择）" value="custom" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                
+                <el-form-item>
+                  <el-switch
+                    v-model="scheduleForm.enableCoolingPeriod"
+                    active-text="设置冷却期"
                   />
                 </el-form-item>
-              </div>
-              
-              <div class="mb-3" v-if="scheduleForm.frequency === 'weekly'">
-                <el-form-item label="重复周期">
-                  <div class="weekday-selector">
-                    <el-button
-                      v-for="(day, index) in weekdays"
-                      :key="index"
-                      :class="{ selected: scheduleForm.weekdays.includes(index) }"
-                      class="weekday-btn"
-                      @click="toggleWeekday(index)"
-                    >
-                      {{ day }}
-                    </el-button>
-                  </div>
-                </el-form-item>
-              </div>
-            </div>
-          </div>
-
-          <!-- 周期执行 -->
-          <div 
-            class="schedule-option" 
-            :class="{ active: scheduleForm.scheduleType === 'periodic' }"
-            @click="selectScheduleType('periodic')"
-          >
-            <el-radio v-model="scheduleForm.scheduleType" label="periodic">
-              <span class="fw-bold">周期执行</span>
-            </el-radio>
-            <div class="ms-4">
-              <p class="text-muted mb-3">按固定时间间隔循环执行任务</p>
-              
-              <div class="mb-3">
-                <el-form-item label="间隔时间">
-                  <div class="d-flex align-items-center">
+                
+                <div v-if="scheduleForm.enableCoolingPeriod">
+                  <div class="d-flex align-items-center" style="width: 200px;">
                     <el-input-number
-                      v-model="scheduleForm.intervalValue"
+                      v-model="scheduleForm.coolingPeriod"
                       :min="1"
                       controls-position="right"
                       style="width: 150px"
                     />
-                    <el-select
-                      v-model="scheduleForm.intervalUnit"
-                      style="width: 120px; margin-left: 10px"
-                    >
-                      <el-option label="分钟" value="minutes" />
-                      <el-option label="小时" value="hours" />
-                      <el-option label="天" value="days" />
-                    </el-select>
+                    <span class="ms-2">分钟</span>
                   </div>
-                </el-form-item>
+                  <div class="form-text">同一设备触发后的冷却期内不会重复执行任务</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 报警事件 -->
+            <div 
+              class="schedule-option" 
+              :class="{ active: scheduleForm.eventType === 'alarm' }"
+              @click="selectEventType('alarm')"
+            >
+              <el-radio v-model="scheduleForm.eventType" label="alarm">
+                <span class="fw-bold">报警事件</span>
+              </el-radio>
+              <div class="ms-4 mt-3">
+                <el-row :gutter="20" class="mb-3">
+                  <el-col :span="8">
+                    <el-form-item label="报警类型">
+                      <el-select v-model="scheduleForm.alarmType" style="width: 100%">
+                        <el-option label="任何报警" value="any" />
+                        <el-option label="温度异常报警" value="temperature" />
+                        <el-option label="湿度异常报警" value="humidity" />
+                        <el-option label="设备故障报警" value="fault" />
+                        <el-option label="自定义报警..." value="custom" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="报警级别">
+                      <el-select v-model="scheduleForm.alarmLevel" style="width: 100%">
+                        <el-option label="所有级别" value="all" />
+                        <el-option label="低级别" value="low" />
+                        <el-option label="中级别" value="medium" />
+                        <el-option label="高级别" value="high" />
+                        <el-option label="紧急级别" value="urgent" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="来源设备">
+                      <el-select v-model="scheduleForm.alarmSource" style="width: 100%">
+                        <el-option label="所有已选设备" value="all" />
+                        <el-option label="部分设备（自定义选择）" value="custom" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </div>
+            </div>
+            
+            <!-- API触发 -->
+            <div 
+              class="schedule-option" 
+              :class="{ active: scheduleForm.eventType === 'api' }"
+              @click="selectEventType('api')"
+            >
+              <el-radio v-model="scheduleForm.eventType" label="api">
+                <span class="fw-bold">API触发</span>
+              </el-radio>
+              <div class="ms-4 mt-3">
+                <el-alert
+                  type="secondary"
+                  :closable="false"
+                  class="d-flex"
+                >
+                  <template #icon>
+                    <el-icon class="me-3 fs-4"><Code /></el-icon>
+                  </template>
+                  <template #default>
+                    <div>
+                      <p class="mb-2">通过API触发此任务，适用于与第三方系统集成或自定义脚本调用。</p>
+                      <div class="input-group">
+                        <el-input
+                          readonly
+                          size="small"
+                          value="https://api.skyeye.com/v1/tasks/trigger/T2023051001"
+                        />
+                        <el-button size="small">
+                          <el-icon><CopyDocument /></el-icon>
+                        </el-button>
+                      </div>
+                      <div class="form-text">使用API密钥进行身份验证，详见API文档</div>
+                    </div>
+                  </template>
+                </el-alert>
               </div>
             </div>
           </div>
-
-          <!-- 触发执行 -->
-          <div 
-            class="schedule-option" 
-            :class="{ active: scheduleForm.scheduleType === 'triggered' }"
-            @click="selectScheduleType('triggered')"
-          >
-            <el-radio v-model="scheduleForm.scheduleType" label="triggered">
-              <span class="fw-bold">触发执行</span>
-            </el-radio>
-            <div class="ms-4">
-              <p class="text-muted mb-3">当满足特定条件时执行任务</p>
-              
-              <div class="mb-3">
-                <el-form-item label="触发类型">
-                  <el-select v-model="scheduleForm.triggerType" style="width: 100%">
-                    <el-option label="事件触发" value="event" />
-                    <el-option label="阈值触发" value="threshold" />
-                    <el-option label="API调用触发" value="api" />
-                  </el-select>
-                </el-form-item>
+          
+          <!-- 手动执行内容 -->
+          <div v-if="activeTab === 'manual'">
+            <el-alert
+              type="info"
+              :closable="false"
+              show-icon
+              class="mb-4"
+            >
+              <template #default>
+                手动执行模式下，任务不会自动执行，需要用户在任务列表中手动触发执行。
+              </template>
+            </el-alert>
+            
+            <div class="text-center py-4">
+              <div class="mb-4">
+                <el-icon class="text-muted" style="font-size: 4rem;"><HandPointer /></el-icon>
               </div>
-              
-              <div class="mb-3">
-                <el-form-item label="触发事件">
-                  <el-select v-model="scheduleForm.triggerEvent" style="width: 100%">
-                    <el-option label="运动检测" value="motion" />
-                    <el-option label="异常行为" value="anomaly" />
-                    <el-option label="报警触发" value="alarm" />
-                  </el-select>
-                </el-form-item>
+              <h5>任务将保持就绪状态</h5>
+              <p class="text-muted">您可以随时在任务列表中手动启动此任务，或通过API触发执行。</p>
+              <div class="mt-3">
+                <el-switch
+                  v-model="scheduleForm.addToQuickAccess"
+                  active-text="添加到快速访问"
+                />
               </div>
             </div>
           </div>
         </el-card>
 
         <!-- 执行限制 -->
-        <el-card>
+        <el-card class="mb-4">
           <template #header>
             <div>
               <el-icon><Stopwatch /></el-icon> 执行限制
@@ -381,7 +598,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Close, Calendar, Stopwatch, Setting, InfoFilled, ArrowLeft, Check } from '@element-plus/icons-vue'
+import { Document, Close, Calendar, Stopwatch, Setting, InfoFilled, ArrowLeft, Check, Clock, Bolt, HandPointer, ChevronDown, Cog, InfoCircle } from '@element-plus/icons-vue'
 import { createTask, saveTaskDraft, updateTask } from '@/api/task'
 
 const router = useRouter()
@@ -397,10 +614,76 @@ const currentStep = ref(3)
 // 周日到周六
 const weekdays = ['日', '一', '二', '三', '四', '五', '六']
 
+// 当前活动的标签页
+const activeTab = ref('time')
+
+// 高级选项是否可见
+const advancedOptionsVisible = ref(false)
+
+// 预览执行时间列表
+const previewTimes = ref([
+  '2023-05-10 08:00:00 (星期一)',
+  '2023-05-10 12:00:00 (星期一)',
+  '2023-05-10 18:00:00 (星期一)',
+  '2023-05-11 08:00:00 (星期二)',
+  '...'
+])
+
+// 任务概要信息
+const taskSummary = reactive({
+  name: '服务器性能监控',
+  description: '定期采集服务器性能数据',
+  creator: '管理员',
+  id: 'T2023051002',
+  deviceCount: 5,
+  deviceTypes: '服务器',
+  deviceAreas: '数据中心、办公室',
+  deviceTags: '生产环境、核心业务',
+  metricCount: 8,
+  metricTypes: 'CPU、内存、磁盘、网络',
+  dataSources: 'SNMP、Agent',
+  hasAlertRules: true,
+  startTime: '2023-05-10 08:00',
+  endTime: '无结束时间'
+})
+
 // 调度表单
 const scheduleForm = reactive({
   // 调度类型
-  scheduleType: 'realtime', // realtime, scheduled, periodic, triggered
+  scheduleType: 'simple', // simple, cron, calendar
+  
+  // 简单调度
+  simpleFrequency: 'hour',
+  simpleInterval: 1,
+  startDateTime: new Date(),
+  noEndTime: true,
+  
+  // Cron表达式
+  cronExpression: '0 0 */1 * * ?',
+  
+  // 日历调度
+  weekdays: [1, 2, 3, 4, 5], // 默认周一到周五
+  execTime: new Date(2023, 0, 1, 8, 0),
+  execTimes: [
+    new Date(2023, 0, 1, 8, 0),
+    new Date(2023, 0, 1, 12, 0),
+    new Date(2023, 0, 1, 18, 0)
+  ],
+  
+  // 事件触发
+  eventType: 'device', // device, alarm, api
+  deviceTrigger: 'online',
+  deviceScope: 'all',
+  enableCoolingPeriod: true,
+  coolingPeriod: 30,
+  
+  // 报警事件
+  alarmType: 'any',
+  alarmLevel: 'all',
+  alarmSource: 'all',
+  
+  // 手动执行
+  addToQuickAccess: true,
   
   // 定时执行
   frequency: 'daily', // once, daily, weekly, monthly, custom
@@ -448,6 +731,93 @@ const toggleWeekday = (day) => {
     scheduleForm.weekdays.push(day)
   } else {
     scheduleForm.weekdays.splice(index, 1)
+  }
+}
+
+// 切换高级选项显示
+const toggleAdvancedOptions = () => {
+  advancedOptionsVisible.value = !advancedOptionsVisible.value
+}
+
+// 选择事件类型
+const selectEventType = (type) => {
+  scheduleForm.eventType = type
+}
+
+// 格式化时间
+const formatTime = (date) => {
+  if (!date) return ''
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+// 移除执行时间
+const removeExecTime = (index) => {
+  scheduleForm.execTimes.splice(index, 1)
+}
+
+// 获取调度类型文本
+const getScheduleTypeText = () => {
+  if (activeTab.value === 'time') {
+    if (scheduleForm.scheduleType === 'simple') return '时间调度 - 简单调度'
+    if (scheduleForm.scheduleType === 'cron') return '时间调度 - Cron表达式'
+    if (scheduleForm.scheduleType === 'calendar') return '时间调度 - 日历调度'
+  } else if (activeTab.value === 'event') {
+    if (scheduleForm.eventType === 'device') return '事件触发 - 设备状态'
+    if (scheduleForm.eventType === 'alarm') return '事件触发 - 报警事件'
+    if (scheduleForm.eventType === 'api') return '事件触发 - API触发'
+  } else if (activeTab.value === 'manual') {
+    return '手动执行'
+  }
+  return '未设置'
+}
+
+// 获取执行频率文本
+const getExecutionFrequencyText = () => {
+  if (activeTab.value === 'time') {
+    if (scheduleForm.scheduleType === 'simple') {
+      return `每${scheduleForm.simpleInterval}${getIntervalUnitText()}`
+    }
+    if (scheduleForm.scheduleType === 'cron') {
+      return 'Cron表达式定义'
+    }
+    if (scheduleForm.scheduleType === 'calendar') {
+      return '按日历计划执行'
+    }
+  } else if (activeTab.value === 'event') {
+    return '由事件触发'
+  } else if (activeTab.value === 'manual') {
+    return '手动触发'
+  }
+  return '未设置'
+}
+
+// 获取间隔单位文本
+const getIntervalUnitText = () => {
+  const unitMap = {
+    'minute': '分钟',
+    'hour': '小时',
+    'day': '天',
+    'week': '周',
+    'month': '月'
+  }
+  return unitMap[scheduleForm.simpleFrequency] || '小时'
+}
+
+// 更新间隔单位
+const updateIntervalUnit = () => {
+  // 根据频率自动调整间隔默认值
+  if (scheduleForm.simpleFrequency === 'minute') {
+    scheduleForm.simpleInterval = 5
+  } else if (scheduleForm.simpleFrequency === 'hour') {
+    scheduleForm.simpleInterval = 1
+  } else if (scheduleForm.simpleFrequency === 'day') {
+    scheduleForm.simpleInterval = 1
+  } else if (scheduleForm.simpleFrequency === 'week') {
+    scheduleForm.simpleInterval = 1
+  } else if (scheduleForm.simpleFrequency === 'month') {
+    scheduleForm.simpleInterval = 1
   }
 }
 
