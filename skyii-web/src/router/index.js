@@ -210,6 +210,24 @@ const routes = [
         meta: { title: '系统配置', requiresAuth: true, activeMenu: '/settings' }
       },
       {
+        path: 'settings/network',
+        name: 'NetworkSettings',
+        component: () => import('@/views/settings/NetworkSettings.vue'),
+        meta: { title: '网络配置', requiresAuth: true, activeMenu: '/settings' }
+      },
+      {
+        path: 'settings/storage',
+        name: 'StorageSettings',
+        component: () => import('@/views/settings/StorageSettings.vue'),
+        meta: { title: '存储管理', requiresAuth: true, activeMenu: '/settings' }
+      },
+      {
+        path: 'settings/alerts',
+        name: 'AlertSettings',
+        component: () => import('@/views/settings/AlertSettings.vue'),
+        meta: { title: '智能报警规则', requiresAuth: true, activeMenu: '/settings' }
+      },
+      {
         path: 'settings/metrics',
         name: 'SettingsMetrics',
         component: () => import('@/views/settings/metrics/MetricsView.vue'),
