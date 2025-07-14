@@ -22,7 +22,7 @@
         </div>
         <div class="feature-item">
           <div class="feature-icon">
-            <el-icon><TrendCharts /></el-icon>
+            <el-icon><Histogram /></el-icon>
           </div>
           <div>数据统计分析</div>
         </div>
@@ -63,6 +63,10 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
+import { 
+  VideoCamera, Monitor, Bell, Histogram, 
+  Connection, Security, Setting, Iphone
+} from '@element-plus/icons-vue'
 
 // 表单引用
 const loginFormRef = ref(null)

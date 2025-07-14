@@ -32,7 +32,7 @@
             <div>
               <h6 class="mb-1">{{ discovery.title }}</h6>
               <div class="confidence-badge">
-                <el-icon class="mr-1"><data-analysis /></el-icon>
+                <el-icon class="mr-1"><document /></el-icon>
                 置信度: {{ discovery.confidence }}%
               </div>
             </div>
@@ -62,7 +62,7 @@ import { ElMessage } from 'element-plus'
 import { 
   Search, 
   Refresh, 
-  DataAnalysis, 
+  Document, 
   Download, 
   Star 
 } from '@element-plus/icons-vue'

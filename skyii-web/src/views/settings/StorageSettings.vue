@@ -190,7 +190,7 @@
               <el-card class="storage-card" shadow="hover">
                 <template #header>
                   <div class="card-header">
-                    <el-icon><TrendCharts /></el-icon> 存储性能
+                    <el-icon><Histogram /></el-icon> 存储性能
                   </div>
                 </template>
                 <div class="storage-performance">
@@ -574,7 +574,7 @@
               <el-card class="storage-card" shadow="hover">
                 <template #header>
                   <div class="card-header">
-                    <el-icon><DataAnalysis /></el-icon> 配额使用概览
+                    <el-icon><Document /></el-icon> 配额使用概览
                   </div>
                 </template>
                 <div class="quota-overview">
@@ -638,6 +638,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  FolderOpened, Histogram, Document, Monitor, Setting, 
+  CircleCheck, Warning, Delete, Download, Upload, 
+  Refresh, Plus, Connection, Cpu 
+} from '@element-plus/icons-vue'
 // 移除API导入，因为我们使用mock数据
 // import {
 //   getStorageDevices,

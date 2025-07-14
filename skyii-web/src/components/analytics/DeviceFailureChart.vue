@@ -74,7 +74,7 @@
           <div class="prediction-card">
             <div class="prediction-header">
               <div class="prediction-icon blue-icon">
-                <el-icon :size="24"><data-analysis /></el-icon>
+                <el-icon :size="24"><document /></el-icon>
               </div>
               <div class="prediction-title">健康评分</div>
             </div>
@@ -224,7 +224,7 @@ import {
   ArrowDown, 
   Warning, 
   Calendar,
-  DataAnalysis,
+  Document,
   CircleCheck,
   Tools
 } from '@element-plus/icons-vue'

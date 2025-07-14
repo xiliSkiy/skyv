@@ -78,7 +78,7 @@
     <!-- 异常原因分析 -->
     <div class="mt-3" v-if="abnormalData?.analysis">
       <div class="section-title mb-2">
-        <el-icon class="mr-1"><data-analysis /></el-icon>
+        <el-icon class="mr-1"><document /></el-icon>
         异常原因分析
       </div>
       <el-collapse v-model="activeReason">
@@ -240,7 +240,7 @@ import {
   ArrowDown, 
   CirclePlus,
   ArrowRight,
-  DataAnalysis,
+  Document,
   Sunny
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts/core'

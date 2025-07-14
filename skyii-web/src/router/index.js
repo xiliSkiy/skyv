@@ -128,8 +128,14 @@ const routes = [
       {
         path: 'alerts',
         name: 'Alerts',
-        component: () => import('@/views/alert/AlertList.vue'),
+        component: () => import('@/views/alert/AlertCenter.vue'),
         meta: { title: '报警中心', icon: 'Bell', requiresAuth: true }
+      },
+      {
+        path: 'alerts/list',
+        name: 'AlertList',
+        component: () => import('@/views/alert/AlertList.vue'),
+        meta: { title: '报警列表', requiresAuth: true, activeMenu: '/alerts' }
       },
       {
         path: 'analytics',
@@ -154,6 +160,12 @@ const routes = [
         name: 'ElementTest',
         component: () => import('@/views/analytics/ElementTest.vue'),
         meta: { title: 'Element组件测试', requiresAuth: true, activeMenu: '/analytics' }
+      },
+      {
+        path: 'history',
+        name: 'History',
+        component: () => import('@/views/history/History.vue'),
+        meta: { title: '历史记录', icon: 'Clock', requiresAuth: true }
       },
       {
         path: 'task',

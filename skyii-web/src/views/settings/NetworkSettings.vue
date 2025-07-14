@@ -170,7 +170,7 @@
               <el-card class="network-card" shadow="hover">
                 <template #header>
                   <div class="card-header">
-                    <el-icon><TrendCharts /></el-icon> 网络状态
+                    <el-icon><Histogram /></el-icon> 网络状态
                   </div>
                 </template>
                 <div class="network-stats">
@@ -422,6 +422,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  Connection, Histogram, Cpu, Monitor, Setting, 
+  Download, Upload, Bell, CircleCheck, Warning 
+} from '@element-plus/icons-vue'
 import { 
   getNetworkInterfaces, 
   updateNetworkInterface,

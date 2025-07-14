@@ -44,7 +44,7 @@
           <el-card class="stat-card" shadow="hover">
             <div class="stat-content">
               <div class="stat-icon success">
-                <el-icon><Shield /></el-icon>
+                <el-icon><Lock /></el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-number">{{ stats.activeRules }}</div>
@@ -370,7 +370,7 @@
                     <el-icon><Edit /></el-icon> 编辑
                   </el-button>
                   <el-button type="info" @click="viewTrend(rule)">
-                    <el-icon><TrendCharts /></el-icon> 查看趋势
+                    <el-icon><Histogram /></el-icon> 查看趋势
                   </el-button>
                   <el-button type="success" @click="cloneRule(rule)">
                     <el-icon><CopyDocument /></el-icon> 克隆
@@ -593,6 +593,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Bell, MagicStick, Monitor, Operation, Upload, Download, Plus,
+  Lock, Histogram, Warning, Setting, Search, Edit, Delete,
+  View, Connection, CircleCheck, CircleClose, InfoFilled,
+  ArrowUp, ArrowDown, Calendar, Clock, User, Cpu, Grid, List, Document, CopyDocument, Refresh, Save
+} from '@element-plus/icons-vue'
 
 // 响应式数据
 const activeType = ref('all')
@@ -673,7 +679,7 @@ const monitoringTypes = [
   { value: 'middleware', label: '中间件', icon: 'Box' },
   { value: 'database', label: '数据库', icon: 'Coin' },
   { value: 'business', label: '业务监控', icon: 'BriefCase' },
-  { value: 'security', label: '安全监控', icon: 'Shield' }
+  { value: 'security', label: '安全监控', icon: 'Lock' }
 ]
 
 // 筛选器选项
@@ -1069,7 +1075,7 @@ const getTypeIcon = (type) => {
     middleware: 'Box',
     database: 'Coin',
     business: 'BriefCase',
-    security: 'Shield'
+    security: 'Lock'
   }
   return icons[type] || 'Monitor'
 }

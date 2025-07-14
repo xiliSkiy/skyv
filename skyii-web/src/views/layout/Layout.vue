@@ -44,7 +44,7 @@
           <template #title>报警中心</template>
         </el-menu-item>
         <el-menu-item index="/analytics">
-          <el-icon><DataAnalysis /></el-icon>
+          <el-icon><Document /></el-icon>
           <template #title>数据分析</template>
         </el-menu-item>
         <el-menu-item index="/task">
@@ -126,6 +126,10 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
+import { 
+  Monitor, VideoCamera, Bell, Document, Operation, 
+  Management, User, Setting, CircleClose, SwitchButton 
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -1,730 +1,1160 @@
 <template>
   <div class="monitoring-container">
-    <el-card shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <div class="header-title">监控管理</div>
-          <div class="header-actions">
-            <el-button type="outline-secondary" size="small" @click="refreshDevices">
-              <el-icon><Refresh /></el-icon> 刷新
-            </el-button>
-            <el-button type="primary" size="small" @click="$router.push('/device/add')">
-              <el-icon><Plus /></el-icon> 添加设备
-            </el-button>
-          </div>
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-left">
+          <h2 class="page-title">
+            <el-icon class="title-icon"><Monitor /></el-icon>
+            实时监控中心
+          </h2>
+          <p class="page-subtitle">全方位视频监控，智能分析与预警</p>
         </div>
-      </template>
-
-      <!-- 搜索和筛选 -->
-      <div class="search-filter-box mb-4">
-        <div class="filter-header">
-          <div class="filter-title">筛选条件</div>
-          <div class="view-switcher">
-            <span class="view-text">视图：</span>
-            <el-radio-group v-model="viewMode" size="small">
-              <el-radio-button label="grid">
-                <el-icon><Grid /></el-icon>
-              </el-radio-button>
-              <el-radio-button label="list">
-                <el-icon><Menu /></el-icon>
-              </el-radio-button>
-            </el-radio-group>
-          </div>
+        <div class="header-actions">
+          <el-button-group>
+            <el-button @click="refreshAll">
+              <el-icon><Refresh /></el-icon>
+              刷新全部
+            </el-button>
+            <el-button @click="batchControl">
+              <el-icon><Operation /></el-icon>
+              批量控制
+            </el-button>
+            <el-button @click="layoutSettings">
+              <el-icon><Grid /></el-icon>
+              布局设置
+            </el-button>
+          </el-button-group>
+          <el-button type="primary" @click="enterFullscreen">
+            <el-icon><FullScreen /></el-icon>
+            全屏监控
+          </el-button>
         </div>
-        
-        <el-form :inline="true" :model="queryParams" class="search-form">
-          <el-form-item label="关键词">
-            <el-input
-              v-model="queryParams.name"
-              placeholder="设备名称/ID/位置"
-              clearable
-              prefix-icon="Search"
-              @keyup.enter="handleQuery"
-            />
-          </el-form-item>
-          <el-form-item label="区域">
-            <el-select v-model="queryParams.location" placeholder="全部区域" clearable>
-              <el-option label="全部区域" value="" />
-              <el-option label="一楼大厅" value="一楼大厅" />
-              <el-option label="后门通道" value="后门通道" />
-              <el-option label="二楼办公区" value="二楼办公区" />
-              <el-option label="地下停车场" value="地下停车场" />
-              <el-option label="仓库区域" value="仓库区域" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="状态">
-            <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
-              <el-option label="全部状态" value="" />
-              <el-option label="在线" :value="1" />
-              <el-option label="离线" :value="0" />
-              <el-option label="故障" :value="2" />
-            </el-select>
-          </el-form-item>
-          <el-form-item class="search-buttons">
-            <el-button type="primary" @click="handleQuery">
-              <el-icon><Search /></el-icon> 搜索
-            </el-button>
-            <el-button @click="resetQuery">
-              <el-icon><Refresh /></el-icon> 重置
-            </el-button>
-          </el-form-item>
-        </el-form>
       </div>
+    </div>
 
-      <!-- 设备状态统计 -->
-      <div class="status-stats mb-4">
-        <el-tag class="status-tag" effect="plain">设备总数: {{ deviceStats.total || 0 }}</el-tag>
-        <el-tag class="status-tag" type="success" effect="plain">在线: {{ deviceStats.online || 0 }}</el-tag>
-        <el-tag class="status-tag" type="danger" effect="plain">离线: {{ deviceStats.offline || 0 }}</el-tag>
-        <el-tag class="status-tag" type="warning" effect="plain">故障: {{ deviceStats.fault || 0 }}</el-tag>
-      </div>
-
-      <!-- 加载状态 -->
-      <div v-loading="loading" class="loading-container">
-        <!-- 网格视图 -->
-        <div v-if="viewMode === 'grid'" class="grid-view-container">
+    <!-- 智能控制面板 -->
+    <div class="control-panel">
+      <el-card shadow="never" class="control-card">
+        <div class="control-content">
           <el-row :gutter="20">
-            <el-col :xs="24" :sm="12" :md="8" :lg="8" :xl="6" v-for="device in deviceList" :key="device.id" class="mb-4">
-              <div class="camera-card">
-                <div class="camera-preview">
-                  <div class="camera-placeholder" v-if="!device.streamUrl">
-                    <!-- 实际项目中这里应该是视频流或图片 -->
-                    <i class="el-icon-video-camera"></i>
+            <!-- 快速操作 -->
+            <el-col :xs="24" :sm="12" :md="8" :lg="6">
+              <div class="control-section">
+                <h4 class="section-title">快速操作</h4>
+                <div class="quick-actions">
+                  <el-button-group class="action-group">
+                    <el-button 
+                      :type="isAllPlaying ? 'danger' : 'success'" 
+                      @click="toggleAllCameras"
+                    >
+                      <el-icon><component :is="isAllPlaying ? 'VideoPause' : 'VideoPlay'" /></el-icon>
+                      {{ isAllPlaying ? '停止全部' : '启动全部' }}
+                    </el-button>
+                    <el-button @click="captureAllSnapshots">
+                      <el-icon><Camera /></el-icon>
+                      全部截图
+                    </el-button>
+                  </el-button-group>
+                </div>
+              </div>
+            </el-col>
+            
+            <!-- 监控统计 -->
+            <el-col :xs="24" :sm="12" :md="8" :lg="6">
+              <div class="control-section">
+                <h4 class="section-title">监控统计</h4>
+                <div class="monitor-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">在线设备</span>
+                    <span class="stat-value online">{{ monitorStats.online }}/{{ monitorStats.total }}</span>
                   </div>
-                  <VideoPlayer v-else :src="device.streamUrl" :device-id="device.id" />
-                  <div class="overlay-controls">
-                    <el-button class="overlay-btn" circle @click="handleFullscreen(device)">
-                      <el-icon><FullScreen /></el-icon>
-                    </el-button>
-                    <el-button class="overlay-btn" circle @click="handleSettings(device)">
-                      <el-icon><Setting /></el-icon>
-                    </el-button>
+                  <div class="stat-item">
+                    <span class="stat-label">监控中</span>
+                    <span class="stat-value monitoring">{{ monitorStats.monitoring }}</span>
                   </div>
                 </div>
-                <div class="camera-info">
-                  <div class="camera-title">
-                    {{ device.name }}
-                    <el-tag :type="getDeviceStatusType(device.status)" size="small" effect="light">
-                      {{ getDeviceStatusText(device.status) }}
-                    </el-tag>
-                  </div>
-                  <div class="camera-subtitle">
-                    <i class="el-icon-location"></i> {{ device.location || '-' }}
-                  </div>
-                  <div class="camera-subtitle">
-                    <i class="el-icon-info"></i> {{ device.code }} | {{ device.ipAddress }}
-                  </div>
-                  <div class="camera-actions">
-                    <div>
-                      <el-button size="small" circle @click="toggleDevicePower(device)">
-                        <el-icon><VideoPlay v-if="!device.isMonitoring" /><VideoPause v-else /></el-icon>
-                      </el-button>
-                      <el-button size="small" circle @click="refreshDevice(device)">
-                        <el-icon><Refresh /></el-icon>
-                      </el-button>
-                      <el-dropdown trigger="click">
-                        <el-button size="small" circle>
-                          <el-icon><MoreFilled /></el-icon>
-                        </el-button>
-                        <template #dropdown>
-                          <el-dropdown-menu>
-                            <el-dropdown-item @click="captureSnapshot(device)">
-                              <el-icon><Camera /></el-icon> 截图
-                            </el-dropdown-item>
-                            <el-dropdown-item @click="toggleRecording(device)">
-                              <el-icon><VideoCamera /></el-icon> {{ device.isRecording ? '停止录制' : '开始录制' }}
-                            </el-dropdown-item>
-                            <el-dropdown-item @click="handleCheck(device)">
-                              <el-icon><Connection /></el-icon> 检测连接
-                            </el-dropdown-item>
-                          </el-dropdown-menu>
-                        </template>
-                      </el-dropdown>
-                    </div>
-                    <el-button type="primary" size="small" @click="$router.push(`/device/detail/${device.id}`)">详情</el-button>
-                  </div>
+              </div>
+            </el-col>
+            
+            <!-- 布局控制 -->
+            <el-col :xs="24" :sm="12" :md="8" :lg="6">
+              <div class="control-section">
+                <h4 class="section-title">显示布局</h4>
+                <div class="layout-controls">
+                  <el-radio-group v-model="layoutMode" size="small">
+                    <el-radio-button value="1x1">1x1</el-radio-button>
+                    <el-radio-button value="2x2">2x2</el-radio-button>
+                    <el-radio-button value="3x3">3x3</el-radio-button>
+                    <el-radio-button value="4x4">4x4</el-radio-button>
+                  </el-radio-group>
+                </div>
+              </div>
+            </el-col>
+            
+            <!-- 筛选条件 -->
+            <el-col :xs="24" :sm="12" :md="8" :lg="6">
+              <div class="control-section">
+                <h4 class="section-title">筛选条件</h4>
+                <div class="filter-controls">
+                  <el-select v-model="filterArea" placeholder="选择区域" size="small" style="width: 100%">
+                    <el-option label="全部区域" value="" />
+                    <el-option label="主入口" value="main_entrance" />
+                    <el-option label="办公区域" value="office" />
+                    <el-option label="停车场" value="parking" />
+                    <el-option label="仓储区" value="warehouse" />
+                  </el-select>
                 </div>
               </div>
             </el-col>
           </el-row>
         </div>
+      </el-card>
+    </div>
 
-        <!-- 列表视图 -->
-        <div v-else class="list-view-container">
-          <el-table :data="deviceList" border style="width: 100%">
-            <el-table-column type="index" width="50" align="center" />
-            <el-table-column prop="name" label="设备名称" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="code" label="设备编码" width="120" show-overflow-tooltip />
-            <el-table-column prop="location" label="设备位置" width="120" show-overflow-tooltip />
-            <el-table-column prop="ipAddress" label="IP地址" width="120" show-overflow-tooltip />
-            <el-table-column label="设备状态" width="100" align="center">
-              <template #default="scope">
-                <el-tag :type="getDeviceStatusType(scope.row.status)">
-                  {{ getDeviceStatusText(scope.row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="监控状态" width="100" align="center">
-              <template #default="scope">
-                <el-tag :type="scope.row.isMonitoring ? 'success' : 'info'">
-                  {{ scope.row.isMonitoring ? '监控中' : '未监控' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="最后心跳时间" width="180" align="center">
-              <template #default="scope">
-                {{ formatDateTime(scope.row.lastHeartbeatTime) }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="280" fixed="right">
-              <template #default="scope">
-                <el-button type="primary" link @click="toggleDevicePower(scope.row)">
-                  {{ scope.row.isMonitoring ? '停止' : '启动' }}
-                </el-button>
-                <el-button type="primary" link @click="captureSnapshot(scope.row)">
-                  截图
-                </el-button>
-                <el-button type="primary" link @click="toggleRecording(scope.row)">
-                  {{ scope.row.isRecording ? '停止录制' : '录制' }}
-                </el-button>
-                <el-button type="primary" link @click="$router.push(`/device/detail/${scope.row.id}`)">
-                  详情
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+    <!-- 监控画面网格 -->
+    <div class="monitoring-grid">
+      <div class="grid-container" :class="`layout-${layoutMode}`">
+        <div 
+          v-for="camera in displayedCameras" 
+          :key="camera.id"
+          class="camera-container"
+          :class="{ 'active': selectedCamera?.id === camera.id }"
+          @click="selectCamera(camera)"
+        >
+          <div class="camera-wrapper">
+            <!-- 视频画面 -->
+            <div class="video-area">
+              <div class="video-placeholder" v-if="!camera.isPlaying">
+                <div class="placeholder-content">
+                  <el-icon class="camera-icon"><VideoCamera /></el-icon>
+                  <div class="camera-name">{{ camera.name }}</div>
+                  <div class="camera-status">
+                    <el-tag :type="getStatusType(camera.status)" size="small">
+                      {{ getStatusText(camera.status) }}
+                    </el-tag>
+                  </div>
+                  <el-button 
+                    v-if="camera.status === 'online'" 
+                    type="primary" 
+                    size="small" 
+                    @click.stop="playCamera(camera)"
+                  >
+                    <el-icon><VideoPlay /></el-icon>
+                    播放
+                  </el-button>
+                </div>
+              </div>
+              
+              <!-- 模拟视频流 -->
+              <div v-else class="video-stream">
+                <img :src="camera.snapshot" :alt="camera.name" />
+                <div class="video-overlay">
+                  <div class="recording-indicator" v-if="camera.isRecording">
+                    <el-icon class="recording-icon"><VideoCameraFilled /></el-icon>
+                    <span>录制中</span>
+                  </div>
+                  <div class="ai-detection" v-if="camera.aiDetection">
+                    <el-tag type="warning" size="small">
+                      <el-icon><MagicStick /></el-icon>
+                      {{ camera.aiDetection }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 状态指示器 -->
+              <div class="status-indicators">
+                <div class="connection-status" :class="camera.status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">{{ getStatusText(camera.status) }}</span>
+                </div>
+                <div class="signal-strength" v-if="camera.status === 'online'">
+                  <el-icon><Connection /></el-icon>
+                  <span>{{ camera.signalStrength }}%</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 控制面板 -->
+            <div class="camera-controls" v-if="camera.isPlaying">
+              <div class="control-left">
+                <div class="camera-info">
+                  <div class="camera-title">{{ camera.name }}</div>
+                  <div class="camera-location">
+                    <el-icon><Location /></el-icon>
+                    {{ camera.location }}
+                  </div>
+                </div>
+              </div>
+              
+              <div class="control-right">
+                <el-button-group size="small">
+                  <el-button @click.stop="captureSnapshot(camera)">
+                    <el-icon><Camera /></el-icon>
+                  </el-button>
+                  <el-button 
+                    :type="camera.isRecording ? 'danger' : ''" 
+                    @click.stop="toggleRecording(camera)"
+                  >
+                    <el-icon><component :is="camera.isRecording ? 'VideoPause' : 'VideoCamera'" /></el-icon>
+                  </el-button>
+                  <el-button @click.stop="showPTZControl(camera)">
+                    <el-icon><Compass /></el-icon>
+                  </el-button>
+                  <el-button @click.stop="stopCamera(camera)">
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </el-button-group>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <!-- 空数据 -->
-        <el-empty v-if="deviceList.length === 0 && !loading" description="暂无监控设备" />
-
-        <!-- 分页 -->
-        <div class="pagination-container" v-if="deviceList.length > 0">
-          <el-pagination
-            v-model:current-page="queryParams.page"
-            v-model:page-size="queryParams.size"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
+        
+        <!-- 空位填充 -->
+        <div 
+          v-for="i in emptySlots" 
+          :key="`empty-${i}`"
+          class="camera-container empty-slot"
+        >
+          <div class="empty-content">
+            <el-icon class="empty-icon"><Plus /></el-icon>
+            <div class="empty-text">添加设备</div>
+          </div>
         </div>
       </div>
-    </el-card>
+    </div>
+
+    <!-- 设备管理侧边栏 -->
+    <div class="device-sidebar" :class="{ 'expanded': sidebarExpanded }">
+      <div class="sidebar-header">
+        <h4>设备列表</h4>
+        <el-button 
+          text 
+          @click="sidebarExpanded = !sidebarExpanded"
+        >
+          <el-icon><component :is="sidebarExpanded ? 'Fold' : 'Expand'" /></el-icon>
+        </el-button>
+      </div>
+      
+      <div class="sidebar-content" v-if="sidebarExpanded">
+        <div class="device-search">
+          <el-input 
+            v-model="deviceSearch" 
+            placeholder="搜索设备" 
+            size="small"
+            clearable
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+        </div>
+        
+        <div class="device-list">
+          <div 
+            v-for="camera in filteredCameras" 
+            :key="camera.id"
+            class="device-item"
+            :class="{ 'active': selectedCamera?.id === camera.id }"
+            @click="selectCamera(camera)"
+          >
+            <div class="device-info">
+              <div class="device-name">{{ camera.name }}</div>
+              <div class="device-location">{{ camera.location }}</div>
+            </div>
+            <div class="device-status">
+              <el-tag :type="getStatusType(camera.status)" size="small">
+                {{ getStatusText(camera.status) }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PTZ 控制弹窗 -->
+    <el-dialog 
+      v-model="ptzDialogVisible" 
+      title="云台控制" 
+      width="400px"
+      align-center
+    >
+      <div class="ptz-control">
+        <div class="ptz-directions">
+          <div class="direction-row">
+            <el-button @click="ptzMove('up-left')">↖</el-button>
+            <el-button @click="ptzMove('up')">↑</el-button>
+            <el-button @click="ptzMove('up-right')">↗</el-button>
+          </div>
+          <div class="direction-row">
+            <el-button @click="ptzMove('left')">←</el-button>
+            <el-button @click="ptzMove('center')">●</el-button>
+            <el-button @click="ptzMove('right')">→</el-button>
+          </div>
+          <div class="direction-row">
+            <el-button @click="ptzMove('down-left')">↙</el-button>
+            <el-button @click="ptzMove('down')">↓</el-button>
+            <el-button @click="ptzMove('down-right')">↘</el-button>
+          </div>
+        </div>
+        
+        <div class="ptz-zoom">
+          <div class="zoom-control">
+            <span>缩放</span>
+            <el-button-group>
+              <el-button @click="ptzZoom('in')">
+                <el-icon><ZoomIn /></el-icon>
+              </el-button>
+              <el-button @click="ptzZoom('out')">
+                <el-icon><ZoomOut /></el-icon>
+              </el-button>
+            </el-button-group>
+          </div>
+          
+          <div class="preset-control">
+            <span>预置位</span>
+            <el-select v-model="currentPreset" placeholder="选择预置位">
+              <el-option label="预置位1" value="1" />
+              <el-option label="预置位2" value="2" />
+              <el-option label="预置位3" value="3" />
+            </el-select>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import VideoPlayer from '@/components/monitoring/VideoPlayer.vue'
-import { 
-  getMonitoringDevices, 
-  getDeviceStreamUrl, 
-  startDeviceMonitoring, 
-  stopDeviceMonitoring, 
-  getDeviceMonitoringStatus,
-  captureSnapshot as captureCameraSnapshot,
-  startRecording as startCameraRecording,
-  stopRecording as stopCameraRecording
-} from '@/api/monitoring'
-import { getDeviceStatusStats, checkDeviceConnection } from '@/api/device'
-import { formatDateTime } from '@/utils/date'
+import {
+  Monitor, Refresh, Operation, Grid, FullScreen, VideoPlay, VideoPause,
+  Camera, VideoCamera, VideoCameraFilled, MagicStick, Connection, Location,
+  Compass, Close, Plus, Fold, Expand, Search, ZoomIn, ZoomOut
+} from '@element-plus/icons-vue'
 
-// 视图模式：grid-网格视图，list-列表视图
-const viewMode = ref('grid')
+// 响应式数据
+const layoutMode = ref('2x2')
+const filterArea = ref('')
+const isAllPlaying = ref(false)
+const selectedCamera = ref(null)
+const sidebarExpanded = ref(true)
+const deviceSearch = ref('')
+const ptzDialogVisible = ref(false)
+const currentPreset = ref('')
 
-// 加载状态
-const loading = ref(false)
-
-// 设备列表数据
-const deviceList = ref([])
-
-// 总记录数
-const total = ref(0)
-
-// 设备状态统计
-const deviceStats = reactive({
-  total: 0,
-  online: 0,
-  offline: 0,
-  fault: 0
+// 监控统计
+const monitorStats = reactive({
+  total: 12,
+  online: 10,
+  offline: 2,
+  monitoring: 6
 })
 
-// 查询参数
-const queryParams = reactive({
-  page: 0,
-  size: 12,
-  name: '',
-  location: '',
-  status: '',
-  sort: 'id',
-  direction: 'desc'
+// Mock 摄像头数据
+const cameras = ref([
+  {
+    id: 'CAM001',
+    name: '主入口摄像头',
+    location: '主入口大厅',
+    area: 'main_entrance',
+    status: 'online',
+    isPlaying: false,
+    isRecording: false,
+    signalStrength: 95,
+    snapshot: 'https://via.placeholder.com/640x360/667eea/ffffff?text=主入口监控',
+    aiDetection: null
+  },
+  {
+    id: 'CAM002',
+    name: '办公区域A摄像头',
+    location: '办公区域A栋',
+    area: 'office',
+    status: 'online',
+    isPlaying: true,
+    isRecording: true,
+    signalStrength: 88,
+    snapshot: 'https://via.placeholder.com/640x360/764ba2/ffffff?text=办公区域A',
+    aiDetection: '检测到异常聚集'
+  },
+  {
+    id: 'CAM003',
+    name: '停车场B区摄像头',
+    location: '停车场B区',
+    area: 'parking',
+    status: 'offline',
+    isPlaying: false,
+    isRecording: false,
+    signalStrength: 0,
+    snapshot: 'https://via.placeholder.com/640x360/e74c3c/ffffff?text=设备离线',
+    aiDetection: null
+  },
+  {
+    id: 'CAM004',
+    name: '仓储区入口摄像头',
+    location: '仓储区入口',
+    area: 'warehouse',
+    status: 'online',
+    isPlaying: true,
+    isRecording: false,
+    signalStrength: 92,
+    snapshot: 'https://via.placeholder.com/640x360/3498db/ffffff?text=仓储区入口',
+    aiDetection: '检测到可疑物品'
+  },
+  {
+    id: 'CAM005',
+    name: '办公区域B摄像头',
+    location: '办公区域B栋',
+    area: 'office',
+    status: 'online',
+    isPlaying: false,
+    isRecording: false,
+    signalStrength: 85,
+    snapshot: 'https://via.placeholder.com/640x360/9b59b6/ffffff?text=办公区域B',
+    aiDetection: null
+  },
+  {
+    id: 'CAM006',
+    name: '会议室摄像头',
+    location: '大会议室',
+    area: 'office',
+    status: 'online',
+    isPlaying: true,
+    isRecording: false,
+    signalStrength: 90,
+    snapshot: 'https://via.placeholder.com/640x360/f39c12/ffffff?text=大会议室',
+    aiDetection: null
+  },
+  {
+    id: 'CAM007',
+    name: '后门通道摄像头',
+    location: '后门安全通道',
+    area: 'main_entrance',
+    status: 'online',
+    isPlaying: false,
+    isRecording: false,
+    signalStrength: 78,
+    snapshot: 'https://via.placeholder.com/640x360/1abc9c/ffffff?text=后门通道',
+    aiDetection: null
+  },
+  {
+    id: 'CAM008',
+    name: '电梯厅摄像头',
+    location: '一楼电梯厅',
+    area: 'office',
+    status: 'maintenance',
+    isPlaying: false,
+    isRecording: false,
+    signalStrength: 0,
+    snapshot: 'https://via.placeholder.com/640x360/f1c40f/ffffff?text=维护中',
+    aiDetection: null
+  }
+])
+
+// 计算属性
+const filteredCameras = computed(() => {
+  let filtered = cameras.value
+  
+  if (filterArea.value) {
+    filtered = filtered.filter(camera => camera.area === filterArea.value)
+  }
+  
+  if (deviceSearch.value) {
+    filtered = filtered.filter(camera => 
+      camera.name.toLowerCase().includes(deviceSearch.value.toLowerCase()) ||
+      camera.location.toLowerCase().includes(deviceSearch.value.toLowerCase())
+    )
+  }
+  
+  return filtered
 })
 
-// 定时刷新定时器
-let refreshTimer = null
-
-// 获取设备状态类型
-const getDeviceStatusType = (status) => {
-  const typeMap = {
-    0: 'danger',  // 离线
-    1: 'success', // 在线
-    2: 'warning'  // 故障
+const displayedCameras = computed(() => {
+  const layoutCounts = {
+    '1x1': 1,
+    '2x2': 4,
+    '3x3': 9,
+    '4x4': 16
   }
-  return typeMap[status] || 'info'
-}
+  
+  return filteredCameras.value.slice(0, layoutCounts[layoutMode.value])
+})
 
-// 获取设备状态文本
-const getDeviceStatusText = (status) => {
-  const textMap = {
-    0: '离线',
-    1: '在线',
-    2: '故障'
+const emptySlots = computed(() => {
+  const layoutCounts = {
+    '1x1': 1,
+    '2x2': 4,
+    '3x3': 9,
+    '4x4': 16
   }
-  return textMap[status] || '未知'
-}
+  
+  const maxSlots = layoutCounts[layoutMode.value]
+  const usedSlots = displayedCameras.value.length
+  return Math.max(0, maxSlots - usedSlots)
+})
 
-// 查询设备列表
-const getList = async () => {
-  loading.value = true
-  try {
-    const res = await getMonitoringDevices(queryParams)
-    if (res.data) {
-      deviceList.value = res.data.map(device => ({
-        ...device,
-        isMonitoring: false,
-        isRecording: false,
-        streamUrl: null
-      }))
-      total.value = res.meta?.total || 0
-      
-      // 获取每个设备的监控状态
-      deviceList.value.forEach(async (device) => {
-        if (device.status === 1) { // 只查询在线设备的监控状态
-          try {
-            const statusRes = await getDeviceMonitoringStatus(device.id)
-            if (statusRes.data) {
-              device.isMonitoring = statusRes.data.isMonitoring
-              device.isRecording = statusRes.data.isRecording
-              if (device.isMonitoring) {
-                const streamRes = await getDeviceStreamUrl(device.id)
-                device.streamUrl = streamRes.data
-              }
-            }
-          } catch (error) {
-            console.error('获取设备监控状态失败', error)
-          }
-        }
-      })
-    }
-  } catch (error) {
-    console.error('获取设备列表失败', error)
-    ElMessage.error('获取设备列表失败')
-  } finally {
-    loading.value = false
+// 方法
+const getStatusType = (status) => {
+  const types = {
+    online: 'success',
+    offline: 'danger',
+    maintenance: 'warning'
   }
+  return types[status] || 'info'
 }
 
-// 获取设备状态统计
-const getDeviceStats = async () => {
-  try {
-    const res = await getDeviceStatusStats()
-    if (res.data) {
-      deviceStats.online = res.data[1] || 0
-      deviceStats.offline = res.data[0] || 0
-      deviceStats.fault = res.data[2] || 0
-      deviceStats.total = deviceStats.online + deviceStats.offline + deviceStats.fault
-    }
-  } catch (error) {
-    console.error('获取设备状态统计失败', error)
+const getStatusText = (status) => {
+  const texts = {
+    online: '在线',
+    offline: '离线',
+    maintenance: '维护中'
   }
+  return texts[status] || '未知'
 }
 
-// 查询按钮点击
-const handleQuery = () => {
-  queryParams.page = 0
-  getList()
+const selectCamera = (camera) => {
+  selectedCamera.value = camera
 }
 
-// 重置查询条件
-const resetQuery = () => {
-  queryParams.name = ''
-  queryParams.location = ''
-  queryParams.status = ''
-  handleQuery()
-}
-
-// 每页条数变更
-const handleSizeChange = (size) => {
-  queryParams.size = size
-  getList()
-}
-
-// 页码变更
-const handleCurrentChange = (page) => {
-  queryParams.page = page - 1
-  getList()
-}
-
-// 刷新设备列表
-const refreshDevices = () => {
-  getList()
-  getDeviceStats()
-}
-
-// 刷新单个设备
-const refreshDevice = async (device) => {
-  try {
-    const statusRes = await getDeviceMonitoringStatus(device.id)
-    if (statusRes.data) {
-      device.isMonitoring = statusRes.data.isMonitoring
-      device.isRecording = statusRes.data.isRecording
-      
-      if (device.isMonitoring) {
-        const streamRes = await getDeviceStreamUrl(device.id)
-        device.streamUrl = streamRes.data
-      } else {
-        device.streamUrl = null
-      }
-    }
-    ElMessage.success('刷新成功')
-  } catch (error) {
-    console.error('刷新设备失败', error)
-    ElMessage.error('刷新设备失败')
-  }
-}
-
-// 切换设备监控状态
-const toggleDevicePower = async (device) => {
-  try {
-    if (device.isMonitoring) {
-      await stopDeviceMonitoring(device.id)
-      device.isMonitoring = false
-      device.streamUrl = null
-      ElMessage.success('已停止监控')
-    } else {
-      if (device.status !== 1) {
-        ElMessage.warning('设备不在线，无法启动监控')
-        return
-      }
-      await startDeviceMonitoring(device.id)
-      device.isMonitoring = true
-      const streamRes = await getDeviceStreamUrl(device.id)
-      device.streamUrl = streamRes.data
-      ElMessage.success('已启动监控')
-    }
-  } catch (error) {
-    console.error('操作失败', error)
-    ElMessage.error('操作失败')
-  }
-}
-
-// 截图
-const captureSnapshot = async (device) => {
-  if (!device.isMonitoring) {
-    ElMessage.warning('请先启动监控')
+const playCamera = (camera) => {
+  if (camera.status !== 'online') {
+    ElMessage.warning('设备不在线，无法播放')
     return
   }
   
-  try {
-    await captureCameraSnapshot(device.id)
-    ElMessage.success('截图成功，已保存到服务器')
-  } catch (error) {
-    console.error('截图失败', error)
-    ElMessage.error('截图失败')
-  }
+  camera.isPlaying = true
+  ElMessage.success(`开始播放 ${camera.name}`)
+  updateMonitorStats()
 }
 
-// 切换录制状态
-const toggleRecording = async (device) => {
-  if (!device.isMonitoring) {
-    ElMessage.warning('请先启动监控')
-    return
-  }
+const stopCamera = (camera) => {
+  camera.isPlaying = false
+  camera.isRecording = false
+  ElMessage.info(`停止播放 ${camera.name}`)
+  updateMonitorStats()
+}
+
+const toggleAllCameras = () => {
+  const onlineCameras = cameras.value.filter(c => c.status === 'online')
   
-  try {
-    if (device.isRecording) {
-      await stopCameraRecording(device.id)
-      device.isRecording = false
-      ElMessage.success('已停止录制')
-    } else {
-      await startCameraRecording(device.id)
-      device.isRecording = true
-      ElMessage.success('已开始录制')
-    }
-  } catch (error) {
-    console.error('操作失败', error)
-    ElMessage.error('操作失败')
-  }
-}
-
-// 检测设备连接
-const handleCheck = async (device) => {
-  try {
-    loading.value = true
-    const res = await checkDeviceConnection(device.id)
-    if (res.data) {
-      ElMessage.success('设备连接正常')
-    } else {
-      ElMessage.warning('设备连接失败')
-    }
-  } catch (error) {
-    ElMessage.error('检测连接失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 全屏显示
-const handleFullscreen = (device) => {
-  if (!device.isMonitoring) {
-    ElMessage.warning('请先启动监控')
-    return
-  }
-  
-  // 这里应该实现全屏显示逻辑
-  ElMessage.info('全屏功能开发中')
-}
-
-// 设置
-const handleSettings = (device) => {
-  ElMessage.info('设置功能开发中')
-}
-
-// 定时刷新
-const startRefreshTimer = () => {
-  refreshTimer = setInterval(() => {
-    // 只刷新在线且正在监控的设备
-    const monitoringDevices = deviceList.value.filter(d => d.status === 1 && d.isMonitoring)
-    monitoringDevices.forEach(device => {
-      refreshDevice(device)
+  if (isAllPlaying.value) {
+    // 停止全部
+    onlineCameras.forEach(camera => {
+      camera.isPlaying = false
+      camera.isRecording = false
     })
-  }, 30000) // 每30秒刷新一次
+    isAllPlaying.value = false
+    ElMessage.info('已停止全部监控')
+  } else {
+    // 启动全部
+    onlineCameras.forEach(camera => {
+      camera.isPlaying = true
+    })
+    isAllPlaying.value = true
+    ElMessage.success('已启动全部监控')
+  }
+  updateMonitorStats()
+}
+
+const captureSnapshot = (camera) => {
+  ElMessage.success(`${camera.name} 截图已保存`)
+}
+
+const captureAllSnapshots = () => {
+  const playingCameras = cameras.value.filter(c => c.isPlaying)
+  if (playingCameras.length === 0) {
+    ElMessage.warning('没有正在播放的摄像头')
+    return
+  }
+  
+  ElMessage.success(`已对 ${playingCameras.length} 个摄像头进行截图`)
+}
+
+const toggleRecording = (camera) => {
+  camera.isRecording = !camera.isRecording
+  ElMessage.success(`${camera.name} ${camera.isRecording ? '开始' : '停止'}录制`)
+}
+
+const showPTZControl = (camera) => {
+  selectedCamera.value = camera
+  ptzDialogVisible.value = true
+}
+
+const ptzMove = (direction) => {
+  ElMessage.info(`云台移动: ${direction}`)
+}
+
+const ptzZoom = (action) => {
+  ElMessage.info(`云台缩放: ${action}`)
+}
+
+const refreshAll = () => {
+  ElMessage.success('刷新完成')
+  updateMonitorStats()
+}
+
+const batchControl = () => {
+  ElMessage.info('批量控制功能开发中...')
+}
+
+const layoutSettings = () => {
+  ElMessage.info('布局设置功能开发中...')
+}
+
+const enterFullscreen = () => {
+  ElMessage.info('全屏监控功能开发中...')
+}
+
+const updateMonitorStats = () => {
+  monitorStats.monitoring = cameras.value.filter(c => c.isPlaying).length
+  monitorStats.online = cameras.value.filter(c => c.status === 'online').length
+  monitorStats.offline = cameras.value.filter(c => c.status === 'offline').length
 }
 
 // 初始化
 onMounted(() => {
-  getList()
-  getDeviceStats()
-  startRefreshTimer()
-})
-
-// 组件销毁前清除定时器
-onBeforeUnmount(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-  }
+  updateMonitorStats()
+  // 模拟AI检测更新
+  setInterval(() => {
+    cameras.value.forEach(camera => {
+      if (camera.isPlaying && Math.random() < 0.1) {
+        const detections = ['检测到异常行为', '识别到可疑物品', '发现未授权人员', null, null, null]
+        camera.aiDetection = detections[Math.floor(Math.random() * detections.length)]
+      }
+    })
+  }, 5000)
 })
 </script>
 
 <style lang="scss" scoped>
 .monitoring-container {
-  padding: 6px;
+  padding: 20px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+  position: relative;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.page-header {
+  margin-bottom: 24px;
   
-  .header-title {
-    font-size: 16px;
-    font-weight: 500;
-  }
-}
-
-.search-filter-box {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 20px;
-  
-  .filter-header {
+  .header-content {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eaeaea;
+    align-items: flex-end;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 24px 32px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
     
-    .filter-title {
-      font-size: 14px;
-      font-weight: 500;
-      color: #606266;
+    .header-left {
+      .page-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 8px 0;
+        
+        .title-icon {
+          color: #ffd700;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+      }
+      
+      .page-subtitle {
+        margin: 0;
+        font-size: 16px;
+        opacity: 0.9;
+      }
     }
     
-    .view-text {
-      margin-right: 8px;
-      color: #606266;
-    }
-    
-    .view-switcher {
+    .header-actions {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 12px;
+      
+      .el-button {
+        border-color: rgba(255, 255, 255, 0.3);
+        
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.5);
+        }
+      }
     }
   }
+}
+
+.control-panel {
+  margin-bottom: 24px;
   
-  .search-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    align-items: flex-start;
+  .control-card {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     
-    :deep(.el-form-item) {
-      margin-bottom: 0;
-      margin-right: 0;
-    }
-    
-    :deep(.el-form-item__label) {
-      color: #606266;
-      font-weight: normal;
-    }
-    
-    .search-buttons {
-      margin-left: auto;
+    .control-content {
+      .section-title {
+        color: #606266;
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+        border-bottom: 1px solid #e4e7ed;
+        padding-bottom: 6px;
+      }
+      
+      .quick-actions {
+        .action-group {
+          width: 100%;
+          
+          .el-button {
+            flex: 1;
+          }
+        }
+      }
+      
+      .monitor-stats {
+        .stat-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+          
+          .stat-label {
+            color: #909399;
+            font-size: 13px;
+          }
+          
+          .stat-value {
+            font-weight: 600;
+            
+            &.online { color: #67c23a; }
+            &.monitoring { color: #409eff; }
+          }
+        }
+      }
+      
+      .layout-controls {
+        .el-radio-group {
+          width: 100%;
+          
+          .el-radio-button {
+            flex: 1;
+          }
+        }
+      }
     }
   }
 }
 
-.status-stats {
-  margin-bottom: 15px;
+.monitoring-grid {
+  margin-bottom: 24px;
   
-  .status-tag {
-    margin-right: 10px;
+  .grid-container {
+    display: grid;
+    gap: 16px;
+    
+    &.layout-1x1 {
+      grid-template-columns: 1fr;
+    }
+    
+    &.layout-2x2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    &.layout-3x3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    
+    &.layout-4x4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
 }
 
-.loading-container {
-  min-height: 300px;
-}
-
-.camera-card {
-  background-color: white;
-  border-radius: 8px;
+.camera-container {
+  background: white;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s;
-  height: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s;
+  cursor: pointer;
+  border: 2px solid transparent;
   
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   }
-}
-
-.camera-preview {
-  width: 100%;
-  height: 200px;
-  background-color: #1e1e1e;
-  position: relative;
   
-  .camera-placeholder {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+  &.active {
+    border-color: #409eff;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+  }
+  
+  .camera-wrapper {
     height: 100%;
     display: flex;
+    flex-direction: column;
+  }
+  
+  .video-area {
+    flex: 1;
+    position: relative;
+    aspect-ratio: 16/9;
+    background: #000;
+    
+    .video-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      
+      .placeholder-content {
+        text-align: center;
+        color: white;
+        
+        .camera-icon {
+          font-size: 48px;
+          margin-bottom: 12px;
+          opacity: 0.7;
+        }
+        
+        .camera-name {
+          font-size: 16px;
+          font-weight: 600;
+          margin-bottom: 8px;
+        }
+        
+        .camera-status {
+          margin-bottom: 16px;
+        }
+      }
+    }
+    
+    .video-stream {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      .video-overlay {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        
+        .recording-indicator {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(245, 108, 108, 0.9);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 12px;
+          
+          .recording-icon {
+            animation: blink 1s infinite;
+          }
+        }
+        
+        .ai-detection {
+          background: rgba(0, 0, 0, 0.7);
+          border-radius: 6px;
+          padding: 2px;
+        }
+      }
+    }
+    
+    .status-indicators {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          
+          .online & { background: #67c23a; }
+          .offline & { background: #f56c6c; }
+          .maintenance & { background: #e6a23c; }
+        }
+      }
+      
+      .signal-strength {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+    }
+  }
+  
+  .camera-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fafbfc;
+    border-top: 1px solid #e4e7ed;
+    
+    .control-left {
+      flex: 1;
+      
+      .camera-info {
+        .camera-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #2c3e50;
+          margin-bottom: 4px;
+        }
+        
+        .camera-location {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #7f8c8d;
+        }
+      }
+    }
+    
+    .control-right {
+      .el-button-group .el-button {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.empty-slot {
+  border: 2px dashed #ddd;
+  background: #f9f9f9;
+  
+  .empty-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 30px;
-    background-color: #1e1e1e;
-    background-size: cover;
-    background-position: center;
-  }
-  
-  .overlay-controls {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    display: flex;
-    gap: 5px;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  
-  &:hover .overlay-controls {
-    opacity: 1;
-  }
-  
-  .overlay-btn {
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    color: white;
-    background-color: rgba(0, 0, 0, 0.5);
+    color: #ccc;
     
-    &:hover {
-      background-color: rgba(0, 0, 0, 0.7);
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .empty-text {
+      font-size: 14px;
+    }
+  }
+  
+  &:hover {
+    border-color: #409eff;
+    background: #f0f7ff;
+    
+    .empty-content {
+      color: #409eff;
     }
   }
 }
 
-.camera-info {
-  padding: 15px;
+.device-sidebar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  width: 60px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: width 0.3s;
+  z-index: 100;
   
-  .camera-title {
-    font-weight: 600;
-    margin-bottom: 5px;
-    font-size: 16px;
+  &.expanded {
+    width: 320px;
+  }
+  
+  .sidebar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-  
-  .camera-subtitle {
-    color: #6c757d;
-    font-size: 14px;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #e4e7ed;
     
-    i {
-      margin-right: 5px;
-      width: 14px;
+    h4 {
+      margin: 0;
+      font-size: 16px;
+      color: #2c3e50;
     }
   }
   
-  .camera-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-top: 1px solid #f0f0f0;
-    padding-top: 15px;
-    margin-top: 5px;
-  }
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.mb-4 {
-  margin-bottom: 16px;
-}
-
-@media screen and (max-width: 768px) {
-  .search-filter-box {
-    .search-form {
-      flex-direction: column;
-      align-items: stretch;
-      
-      .el-form-item {
-        width: 100%;
-      }
-      
-      .search-buttons {
-        margin-left: 0;
+  .sidebar-content {
+    padding: 16px;
+    height: calc(100% - 57px);
+    overflow-y: auto;
+    
+    .device-search {
+      margin-bottom: 16px;
+    }
+    
+    .device-list {
+      .device-item {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        
+        &:hover {
+          background: #f5f7fa;
+        }
+        
+        &.active {
+          background: #e6f7ff;
+          border: 1px solid #409eff;
+        }
+        
+        .device-info {
+          flex: 1;
+          
+          .device-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+          }
+          
+          .device-location {
+            font-size: 12px;
+            color: #7f8c8d;
+          }
+        }
       }
     }
+  }
+}
+
+.ptz-control {
+  .ptz-directions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+    
+    .direction-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      
+      .el-button {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+      }
+    }
+  }
+  
+  .ptz-zoom {
+    .zoom-control,
+    .preset-control {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      
+      span {
+        color: #606266;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+@media (max-width: 1200px) {
+  .monitoring-grid .grid-container {
+    &.layout-4x4 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .monitoring-container {
+    padding: 12px;
+  }
+  
+  .page-header .header-content {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .monitoring-grid .grid-container {
+    &.layout-2x2,
+    &.layout-3x3,
+    &.layout-4x4 {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .device-sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    margin-top: 20px;
+    
+    &.expanded {
+      width: 100%;
+    }
+  }
+  
+  .control-panel .control-content .el-row .el-col {
+    margin-bottom: 16px;
   }
 }
 </style> 

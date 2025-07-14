@@ -14,7 +14,7 @@
               </small>
             </div>
             <div class="text-primary mt-1 text-sm">
-              <el-icon class="mr-1"><trend-charts /></el-icon>
+              <el-icon class="mr-1"><histogram /></el-icon>
               {{ overview?.totalTraffic?.prediction }}
             </div>
           </div>
@@ -111,14 +111,14 @@
 <script setup>
 import { computed } from 'vue'
 import { useAnalyticsStore } from '@/store/modules/analytics'
-import { 
-  User, 
-  Bell, 
-  Timer, 
-  Monitor, 
-  ArrowUp, 
-  ArrowDown, 
-  TrendCharts,
+import {
+  User,
+  Bell,
+  Timer,
+  Monitor,
+  ArrowUp,
+  ArrowDown,
+  Histogram,
   Warning,
   Check,
   Tools

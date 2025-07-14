@@ -4,7 +4,7 @@
       <div>
         <h5 class="mb-0">AI增强热力图分析</h5>
         <small class="text-muted">
-          <el-icon class="mr-1"><data-analysis /></el-icon>
+          <el-icon class="mr-1"><document /></el-icon>
           智能识别关注区域
         </small>
       </div>
@@ -118,11 +118,15 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useAnalyticsStore } from '@/store/modules/analytics'
 import { ElMessage } from 'element-plus'
 import { 
-  DataAnalysis, 
-  ArrowDown, 
-  Location, 
-  Timer, 
-  Star 
+  Refresh,
+  Download,
+  Document,
+  FullScreen,
+  Setting,
+  InfoFilled,
+  VideoCamera,
+  MapLocation,
+  Warning
 } from '@element-plus/icons-vue'
 
 const analyticsStore = useAnalyticsStore()
