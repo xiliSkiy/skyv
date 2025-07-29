@@ -136,7 +136,7 @@
                   <!-- 指标分组 -->
                   <div v-for="(group, groupName) in groupedAvailableMetrics" :key="groupName">
                     <div class="list-group-item bg-light">
-                      <el-icon><InfoCircle /></el-icon> {{ groupName }}
+                      <el-icon><InfoFilled /></el-icon> {{ groupName }}
                     </div>
                     
                     <div 
@@ -551,7 +551,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Close, DataLine, Plus, Collection, InfoFilled, Setting, Delete, 
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search, List, Check, Tag, Clock, Ruler, 
-  InfoCircle, Minus } from '@element-plus/icons-vue'
+  Minus } from '@element-plus/icons-vue'
 import { getMetricTemplates, saveTaskDraft } from '@/api/task'
 import DraggableMetrics from '@/components/DraggableMetrics.vue'
 

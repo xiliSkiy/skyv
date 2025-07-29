@@ -65,7 +65,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
 import { 
   VideoCamera, Monitor, Bell, Histogram, 
-  Connection, Security, Setting, Iphone
+  Connection, Lock, Setting, Iphone
 } from '@element-plus/icons-vue'
 
 // 表单引用
@@ -101,6 +101,8 @@ const loginRules = {
 
 // 处理登录
 const handleLogin = () => {
+  if (!loginFormRef.value) return
+  
   loginFormRef.value.validate(async (valid) => {
     if (!valid) return
     

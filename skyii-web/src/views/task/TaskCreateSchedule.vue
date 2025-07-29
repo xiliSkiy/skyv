@@ -598,7 +598,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Close, Calendar, Stopwatch, Setting, InfoFilled, ArrowLeft, Check, Clock, Bolt, HandPointer, ChevronDown, Cog, InfoCircle } from '@element-plus/icons-vue'
+import { Document, Close, Calendar, Stopwatch, Setting, InfoFilled, ArrowLeft, Check, Clock, Bolt, HandPointer, ArrowDown, Setting as SettingIcon, InfoFilled as InfoIcon } from '@element-plus/icons-vue'
 import { createTask, saveTaskDraft, updateTask } from '@/api/task'
 
 const router = useRouter()
