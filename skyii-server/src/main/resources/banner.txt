@@ -1,7 +1,0 @@
- _______ _     _ __   __ _______ __   __ _______
- |______ |____/   \_/   |______ |  \_/  |______
- ______| |    \    |    |______ |_____/ |______
-                                               
-
-:: Spring Boot :: ${spring-boot.version}
-:: Application :: ${spring.application.name} 
