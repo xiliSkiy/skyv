@@ -487,6 +487,15 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/date'
+import { 
+  createDevice, 
+  updateDevice, 
+  getDeviceById,
+  getDeviceTypes,
+  getDeviceGroups,
+  getDeviceAreas,
+  getDeviceTemplates
+} from '@/api/device'
 import {
   Back, Edit, VideoCamera, Connection, Monitor, Document, Check,
   InfoFilled, Management, DocumentCopy, Lock, Setting, SetUp,
@@ -752,66 +761,34 @@ const nextStep = async () => {
 const submitForm = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    setTimeout(() => {
+    let response
+    if (isEdit.value) {
+      // 更新设备
+      response = await updateDevice(route.params.id, deviceForm)
+    } else {
+      // 创建设备
+      response = await createDevice(deviceForm)
+    }
+    
+    if (response.code === 200) {
       ElMessage.success(isEdit.value ? '设备更新成功' : '设备添加成功')
       router.push('/device')
-    }, 1000)
+    } else {
+      ElMessage.error(response.message || (isEdit.value ? '设备更新失败' : '设备添加失败'))
+    }
   } catch (error) {
     console.error('提交设备数据失败', error)
-    ElMessage.error(isEdit.value ? '设备更新失败' : '设备添加失败')
+    ElMessage.error(isEdit.value ? '设备更新失败：' + (error.message || '网络错误') : '设备添加失败：' + (error.message || '网络错误'))
   } finally {
     loading.value = false
   }
 }
 
 // 如果是编辑模式，获取设备详情
-onMounted(() => {
+onMounted(async () => {
   if (isEdit.value) {
     const deviceId = route.params.id
-    
-    // 模拟获取设备详情
-    loading.value = true
-    setTimeout(() => {
-      // 模拟数据
-      Object.assign(deviceForm, {
-        name: '前门摄像头',
-        code: 'CAM-FRONT-001',
-        type: 'CAMERA',
-        model: 'HK-DS2CD2032-I',
-        location: '前门入口',
-        description: '前门安全监控摄像头，24小时工作',
-        ipAddress: '192.168.1.101',
-        port: 554,
-        macAddress: '00:11:22:33:44:55',
-        subnetMask: '255.255.255.0',
-        gateway: '192.168.1.1',
-        dns: '8.8.8.8',
-        connectionType: 'WIRED',
-        username: 'admin',
-        password: '******',
-        authType: 'DIGEST',
-        autoReconnect: true,
-        groupId: 1,
-        area: 'NORTH',
-        tags: ['IMPORTANT', 'OUTDOOR'],
-        status: 1,
-        autoDetect: true,
-        protocol: 'ONVIF',
-        protocolVersion: '2.0',
-        transportProtocol: 'RTSP',
-        dataPath: '/Streaming/Channels/1',
-        resolution: '1920x1080',
-        frameRate: '25fps',
-        bitRate: '4Mbps',
-        imageFormat: 'H.264',
-        ptzControl: true,
-        infrared: true,
-        heartbeatInterval: 30,
-        timeout: 5
-      })
-      loading.value = false
-    }, 500)
+    await getDevice(deviceId)
   }
 })
 

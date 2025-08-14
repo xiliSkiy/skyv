@@ -214,9 +214,15 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  getDeviceTypeTree, 
+  createDeviceType, 
+  updateDeviceType, 
+  deleteDeviceType
+} from '@/api/device'
 import {
   Plus, Edit, Delete, View, Search, Download, Upload, 
-  VideoCamera, Odometer, Key, Monitor
+  VideoCamera, Setting, Connection, Cpu, Grid, Star
 } from '@element-plus/icons-vue'
 
 // 查询参数
@@ -276,166 +282,25 @@ const typeRules = {
 }
 
 // 获取设备类型列表
-const getTypeList = () => {
-  loading.value = true
-  // 模拟 API 调用
-  setTimeout(() => {
-    // Mock 数据
-    typeList.value = [
-      {
-        id: 1,
-        name: '摄像头',
-        code: 'CAMERA',
-        deviceCount: 50,
-        icon: 'camera',
-        protocols: ['RTSP', 'ONVIF', 'HTTP'],
-        sort: 1,
-        description: '监控摄像设备',
-        children: [
-          {
-            id: 11,
-            name: '网络摄像头',
-            code: 'CAMERA_NETWORK',
-            deviceCount: 30,
-            icon: 'camera',
-            protocols: ['RTSP', 'ONVIF', 'HTTP'],
-            sort: 1,
-            description: '基于IP网络的摄像设备',
-            children: [
-              {
-                id: 111,
-                name: '球机',
-                code: 'CAMERA_NETWORK_DOME',
-                deviceCount: 15,
-                icon: 'camera',
-                protocols: ['RTSP', 'ONVIF'],
-                sort: 1,
-                description: '具有云台控制功能的网络摄像设备'
-              },
-              {
-                id: 112,
-                name: '枪机',
-                code: 'CAMERA_NETWORK_BULLET',
-                deviceCount: 10,
-                icon: 'camera',
-                protocols: ['RTSP', 'ONVIF'],
-                sort: 2,
-                description: '固定安装的网络摄像设备'
-              },
-              {
-                id: 113,
-                name: '半球',
-                code: 'CAMERA_NETWORK_TURRET',
-                deviceCount: 5,
-                icon: 'camera',
-                protocols: ['RTSP', 'ONVIF'],
-                sort: 3,
-                description: '小型网络半球摄像设备'
-              }
-            ]
-          },
-          {
-            id: 12,
-            name: '模拟摄像头',
-            code: 'CAMERA_ANALOG',
-            deviceCount: 10,
-            icon: 'camera',
-            protocols: ['BNC'],
-            sort: 2,
-            description: '传统模拟信号摄像设备'
-          },
-          {
-            id: 13,
-            name: '热成像摄像头',
-            code: 'CAMERA_THERMAL',
-            deviceCount: 5,
-            icon: 'camera',
-            protocols: ['RTSP', 'ONVIF'],
-            sort: 3,
-            description: '可在无光环境下工作的热成像设备'
-          }
-        ]
-      },
-      {
-        id: 2,
-        name: '传感器',
-        code: 'SENSOR',
-        deviceCount: 35,
-        icon: 'sensor',
-        protocols: ['MODBUS', 'MQTT', 'HTTP'],
-        sort: 2,
-        description: '各类环境传感器',
-        children: [
-          {
-            id: 21,
-            name: '温湿度传感器',
-            code: 'SENSOR_TEMP_HUMI',
-            deviceCount: 20,
-            icon: 'sensor',
-            protocols: ['MODBUS', 'MQTT'],
-            sort: 1,
-            description: '监测温度和湿度的传感设备'
-          },
-          {
-            id: 22,
-            name: '气体传感器',
-            code: 'SENSOR_GAS',
-            deviceCount: 10,
-            icon: 'sensor',
-            protocols: ['MODBUS'],
-            sort: 2,
-            description: '监测气体浓度的传感设备'
-          },
-          {
-            id: 23,
-            name: '烟雾传感器',
-            code: 'SENSOR_SMOKE',
-            deviceCount: 5,
-            icon: 'sensor',
-            protocols: ['MODBUS', 'HTTP'],
-            sort: 3,
-            description: '监测烟雾浓度的传感设备'
-          }
-        ]
-      },
-      {
-        id: 3,
-        name: '门禁',
-        code: 'ACCESS',
-        deviceCount: 15,
-        icon: 'access',
-        protocols: ['HTTP', 'HTTPS'],
-        sort: 3,
-        description: '门禁控制设备',
-        children: [
-          {
-            id: 31,
-            name: '门禁控制器',
-            code: 'ACCESS_CONTROLLER',
-            deviceCount: 10,
-            icon: 'access',
-            protocols: ['HTTP', 'HTTPS'],
-            sort: 1,
-            description: '门禁系统中的控制主机'
-          },
-          {
-            id: 32,
-            name: '读卡器',
-            code: 'ACCESS_READER',
-            deviceCount: 5,
-            icon: 'access',
-            protocols: ['Wiegand'],
-            sort: 2,
-            description: '用于读取门禁卡的设备'
-          }
-        ]
-      }
-    ]
-    loading.value = false
+const getTypeList = async () => {
+  try {
+    loading.value = true
     
-    // 构建类型选项
-    buildTypeOptions()
-  }, 500)
+    const response = await getDeviceTypeTree(queryParams.keyword)
+    
+    if (response.code === 200) {
+      typeList.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '获取设备类型失败')
+      typeList.value = []
+    }
+  } catch (error) {
+    console.error('获取设备类型失败', error)
+    ElMessage.error('获取设备类型失败：' + (error.message || '网络错误'))
+    typeList.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 // 构建类型选项（用于级联选择器）
@@ -498,41 +363,73 @@ const handleView = (row) => {
 }
 
 // 删除设备类型
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确认删除设备类型"${row.name}"吗？删除后其下所有子类型将一并删除！`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除设备类型"${row.name}"吗？删除后其下所有子类型将一并删除！`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceType(row.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `设备类型"${row.name}"已删除`,
       })
       getTypeList()
-    })
-    .catch(() => {})
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除设备类型失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 导出类型
-const handleExport = () => {
-  ElMessage({
-    type: 'info',
-    message: '导出设备类型功能开发中',
-  })
+const handleExport = async () => {
+  try {
+    // TODO: 实现导出功能
+    ElMessage({
+      type: 'info',
+      message: '导出设备类型功能开发中',
+    })
+    // 实际实现时可以调用导出API
+    // const response = await exportDeviceTypes()
+    // if (response.code === 200) {
+    //   // 处理文件下载
+    // }
+  } catch (error) {
+    console.error('导出失败', error)
+    ElMessage.error('导出失败：' + (error.message || '网络错误'))
+  }
 }
 
 // 导入类型
-const handleImport = () => {
-  ElMessage({
-    type: 'info',
-    message: '导入设备类型功能开发中',
-  })
+const handleImport = async () => {
+  try {
+    // TODO: 实现导入功能
+    ElMessage({
+      type: 'info',
+      message: '导入设备类型功能开发中',
+    })
+    // 实际实现时可以添加文件上传和导入逻辑
+    // 1. 显示文件选择对话框
+    // 2. 上传文件到服务器
+    // 3. 调用导入API处理文件
+    // 4. 刷新列表
+  } catch (error) {
+    console.error('导入失败', error)
+    ElMessage.error('导入失败：' + (error.message || '网络错误'))
+  }
 }
 
 // 重置表单
@@ -557,17 +454,30 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!typeFormRef.value) return
   
-  await typeFormRef.value.validate((valid) => {
+  await typeFormRef.value.validate(async (valid) => {
     if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getTypeList()
-      }, 500)
+      try {
+        let response
+        if (dialog.type === 'edit') {
+          response = await updateDeviceType(typeForm.id, typeForm)
+        } else {
+          response = await createDeviceType(typeForm)
+        }
+        
+        if (response.code === 200) {
+          ElMessage({
+            type: 'success',
+            message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+          })
+          dialog.visible = false
+          getTypeList()
+        } else {
+          ElMessage.error(response.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('操作失败', error)
+        ElMessage.error('操作失败：' + (error.message || '网络错误'))
+      }
     }
   })
 }

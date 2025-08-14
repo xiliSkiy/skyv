@@ -259,6 +259,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  getDeviceList, 
+  getDeviceStatsData as fetchDeviceStatsData, 
+  deleteDevice, 
+  batchDeleteDevices, 
+  testDeviceConnection 
+} from '@/api/device'
 import { formatDateTime } from '@/utils/date'
 import { 
   Plus, ArrowDown, Filter, List, Location, PieChart, 
@@ -312,9 +319,10 @@ const queryParams = reactive({
 // 获取设备状态类型
 const getDeviceStatusType = (status) => {
   const typeMap = {
-    0: 'danger',
-    1: 'success',
-    2: 'warning'
+    1: 'success',  // 在线
+    2: 'danger',   // 离线
+    3: 'warning',  // 故障
+    4: 'info'      // 维护
   }
   return typeMap[status] || 'info'
 }
@@ -322,9 +330,10 @@ const getDeviceStatusType = (status) => {
 // 获取设备状态文本
 const getDeviceStatusText = (status) => {
   const textMap = {
-    0: '离线',
     1: '在线',
-    2: '故障'
+    2: '离线', 
+    3: '故障',
+    4: '维护'
   }
   return textMap[status] || '未知'
 }
@@ -340,96 +349,65 @@ const getDeviceTypeText = (type) => {
   return typeMap[type] || type
 }
 
-// Mock数据：获取设备列表
+// 获取设备列表
 const getList = async () => {
-  loading.value = true
   try {
-    // 模拟API调用
-    setTimeout(() => {
-      // Mock数据
-      deviceList.value = [
-        {
-          id: 1,
-          name: 'HD摄像头-会议室',
-          code: 'CAM20230001',
-          type: 'CAMERA',
-          ipAddress: '192.168.1.101',
-          area: '北区',
-          tags: ['重要', '室内'],
-          status: 1,
-          lastHeartbeatTime: new Date().toISOString(),
-          createdAt: '2023-05-10T10:00:00Z'
-        },
-        {
-          id: 2,
-          name: '温湿度传感器-办公区',
-          code: 'SENS20230002',
-          type: 'SENSOR',
-          ipAddress: '192.168.1.102',
-          area: '东区',
-          tags: ['室内'],
-          status: 1,
-          lastHeartbeatTime: new Date().toISOString(),
-          createdAt: '2023-05-12T14:30:00Z'
-        },
-        {
-          id: 3,
-          name: '门禁控制器-正门',
-          code: 'ACC20230003',
-          type: 'ACCESS',
-          ipAddress: '192.168.1.103',
-          area: '南区',
-          tags: ['重要', '室外'],
-          status: 0,
-          lastHeartbeatTime: '2023-06-15T08:45:12Z',
-          createdAt: '2023-05-15T09:20:00Z'
-        },
-        {
-          id: 4,
-          name: '360全景摄像头-大厅',
-          code: 'CAM20230004',
-          type: 'CAMERA',
-          ipAddress: '192.168.1.104',
-          area: '西区',
-          tags: ['重要', '室内'],
-          status: 2,
-          lastHeartbeatTime: '2023-06-20T17:30:45Z',
-          createdAt: '2023-05-18T16:10:00Z'
-        },
-        {
-          id: 5,
-          name: '烟雾传感器-档案室',
-          code: 'SENS20230005',
-          type: 'SENSOR',
-          ipAddress: '192.168.1.105',
-          area: '北区',
-          tags: ['室内', '测试'],
-          status: 1,
-          lastHeartbeatTime: new Date().toISOString(),
-          createdAt: '2023-05-20T11:15:00Z'
-        }
-      ]
-      total.value = 5
-      loading.value = false
-    }, 500)
+    loading.value = true
+    
+    // 构建查询参数
+    const params = {
+      page: queryParams.page,
+      size: queryParams.size,
+      sortBy: queryParams.sort,
+      sortDir: queryParams.direction
+    }
+    
+    // 添加查询条件
+    if (queryParams.name) params.name = queryParams.name
+    if (queryParams.type) params.deviceTypeId = queryParams.type
+    if (queryParams.status !== '') params.status = queryParams.status
+    if (queryParams.area) params.areaId = queryParams.area
+    if (queryParams.group) params.groupId = queryParams.group
+    if (queryParams.protocol) params.protocol = queryParams.protocol
+
+    // 调用API
+    const response = await getDeviceList(params)
+    
+    if (response.code === 200) {
+      deviceList.value = response.data.content || []
+      total.value = response.data.totalElements || 0
+    } else {
+      ElMessage.error(response.message || '获取设备列表失败')
+      deviceList.value = []
+      total.value = 0
+    }
   } catch (error) {
     console.error('获取设备列表失败', error)
+    ElMessage.error('获取设备列表失败：' + (error.message || '网络错误'))
+    deviceList.value = []
+    total.value = 0
+  } finally {
     loading.value = false
   }
 }
 
-// Mock数据：获取设备状态统计
-const getDeviceStats = async () => {
+// 获取设备状态统计
+const getDeviceStatsData = async () => {
   try {
-    // 模拟API调用
-    setTimeout(() => {
-      deviceStats.online = 3
-      deviceStats.offline = 1
-      deviceStats.fault = 1
-      deviceStats.total = deviceStats.online + deviceStats.offline + deviceStats.fault
-    }, 300)
+    const response = await fetchDeviceStatsData()
+    
+    if (response.code === 200) {
+      const stats = response.data
+      deviceStats.online = stats.online || 0
+      deviceStats.offline = stats.offline || 0
+      deviceStats.fault = stats.fault || 0
+      deviceStats.total = stats.total || 0
+    } else {
+      ElMessage.error(response.message || '获取设备统计失败')
+    }
   } catch (error) {
     console.error('获取设备状态统计失败', error)
+    ElMessage.error('获取设备统计失败：' + (error.message || '网络错误'))
   }
 }
 
@@ -481,45 +459,112 @@ const handleEdit = (row) => {
 
 // 检测连接
 const handleCheck = async (row) => {
-  ElMessage({
-    type: 'info',
-    message: `正在检测设备 ${row.name} 的连接状态...`
-  })
-  // 模拟检测过程
-  setTimeout(() => {
+  try {
     ElMessage({
-      type: 'success',
-      message: `设备 ${row.name} 连接正常`
+      type: 'info',
+      message: `正在检测设备 ${row.name} 的连接状态...`
     })
-  }, 1500)
+    
+    const response = await testDeviceConnection(row.id)
+    
+    if (response.code === 200) {
+      const result = response.data
+      if (result.connected) {
+        ElMessage({
+          type: 'success',
+          message: `设备 ${row.name} 连接正常`
+        })
+        // 更新设备状态
+        row.status = 1
+      } else {
+        ElMessage({
+          type: 'error',
+          message: `设备 ${row.name} 连接失败：${result.message || '连接超时'}`
+        })
+        row.status = 2
+      }
+    } else {
+      ElMessage.error(response.message || '连接测试失败')
+    }
+  } catch (error) {
+    console.error('设备连接测试失败', error)
+    ElMessage.error('连接测试失败：' + (error.message || '网络错误'))
+  }
 }
 
 // 删除设备
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确认删除设备"${row.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除设备 "${row.name}" 吗？`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDevice(row.id)
+    
+    if (response.code === 200) {
+      ElMessage.success('删除成功')
+      await getList() // 重新加载列表
+      await getDeviceStatsData() // 重新加载统计
+    } else {
+      ElMessage.error(response.message || '删除失败')
     }
-  ).then(() => {
-    // 模拟删除操作
-    setTimeout(() => {
-      ElMessage({
-        type: 'success',
-        message: `设备"${row.name}"已删除`
-      })
-      getList()
-    }, 500)
-  }).catch(() => {})
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除设备失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
-// 生命周期钩子
-onMounted(() => {
-  getList()
-  getDeviceStats()
+// 批量删除设备
+const handleBatchDelete = async () => {
+  if (selectedDevices.value.length === 0) {
+    ElMessage.warning('请选择要删除的设备')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedDevices.value.length} 个设备吗？`,
+      '确认批量删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const ids = selectedDevices.value.map(device => device.id)
+    const response = await batchDeleteDevices(ids)
+    
+    if (response.code === 200) {
+      ElMessage.success(`成功删除 ${selectedDevices.value.length} 个设备`)
+      selectedDevices.value = []
+      await getList() // 重新加载列表
+      await getDeviceStatsData() // 重新加载统计
+    } else {
+      ElMessage.error(response.message || '批量删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量删除设备失败', error)
+      ElMessage.error('批量删除失败：' + (error.message || '网络错误'))
+    }
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(async () => {
+  await Promise.all([
+    getList(),
+    getDeviceStatsData()
+  ])
 })
 </script>
 

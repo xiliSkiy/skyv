@@ -1,0 +1,14 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "SkyEye PostgreSQL",
+            "Group": "Servers",
+            "Host": "skyeye-postgres",
+            "Port": 5432,
+            "MaintenanceDB": "skyeye",
+            "Username": "skyeye_app",
+            "PassFile": "/pgpass",
+            "SSLMode": "prefer"
+        }
+    }
+}

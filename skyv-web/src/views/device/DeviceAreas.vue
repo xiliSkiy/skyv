@@ -31,7 +31,7 @@
       <div class="search-panel mb-20">
         <el-input 
           v-model="searchKeyword" 
-          placeholder="搜索区域" 
+          placeholder="搜索区域名称或编码" 
           clearable 
           @keyup.enter="handleSearch"
           class="search-input">
@@ -44,253 +44,222 @@
         </el-input>
       </div>
       
-      <!-- 卡片视图 -->
-      <template v-if="viewType === 'card'">
-        <el-row :gutter="20">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="area in filteredAreas" :key="area.id" class="mb-20">
-            <div class="area-card">
-              <div class="area-header">
-                <div class="area-title-wrapper">
-                  <div class="area-icon" :class="`area-icon-${area.type}`">
-                    <el-icon v-if="area.type === 'building'"><OfficeBuilding /></el-icon>
-                    <el-icon v-else-if="area.type === 'floor'"><CopyDocument /></el-icon>
-                    <el-icon v-else-if="area.type === 'room'"><House /></el-icon>
-                    <el-icon v-else><Location /></el-icon>
+      <!-- 加载状态 -->
+      <div v-loading="loading">
+        <!-- 卡片视图 -->
+        <template v-if="viewType === 'card'">
+          <el-row :gutter="20">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="area in filteredAreas" :key="area.id" class="mb-20">
+              <div class="area-card">
+                <div class="area-header">
+                  <div class="area-title-wrapper">
+                    <div class="area-icon" :class="`area-icon-level-${area.level || 0}`">
+                      <el-icon v-if="area.level === 0"><OfficeBuilding /></el-icon>
+                      <el-icon v-else-if="area.level === 1"><CopyDocument /></el-icon>
+                      <el-icon v-else-if="area.level === 2"><House /></el-icon>
+                      <el-icon v-else><Location /></el-icon>
+                    </div>
+                    <div class="area-title">
+                      <h3>{{ area.name }}</h3>
+                      <div class="area-path">{{ area.fullPath || area.name }}</div>
+                    </div>
                   </div>
-                  <div class="area-title">
-                    <h3>{{ area.name }}</h3>
-                    <div class="area-path">{{ area.path }}</div>
-                  </div>
-                </div>
-                <div class="area-status">
-                  <el-tag size="small" :type="area.status === '正常' ? 'success' : 'danger'">{{ area.status }}</el-tag>
-                </div>
-              </div>
-              
-              <div class="area-content">
-                <div class="area-desc">{{ area.description || '暂无描述' }}</div>
-                <div class="area-stats">
-                  <div class="area-stat-item">
-                    <div class="area-stat-value">{{ area.deviceCount }}</div>
-                    <div class="area-stat-label">设备数</div>
-                  </div>
-                  <div class="area-stat-item">
-                    <div class="area-stat-value">{{ area.onlineCount }}</div>
-                    <div class="area-stat-label">在线</div>
-                  </div>
-                  <div class="area-stat-item">
-                    <div class="area-stat-value">{{ area.alertCount }}</div>
-                    <div class="area-stat-label">报警</div>
+                  <div class="area-status">
+                    <el-tag size="small" type="success">正常</el-tag>
                   </div>
                 </div>
+                
+                <div class="area-content">
+                  <div class="area-desc">{{ area.description || '暂无描述' }}</div>
+                  <div class="area-stats">
+                    <div class="area-stat-item">
+                      <div class="area-stat-value">{{ area.deviceCount || 0 }}</div>
+                      <div class="area-stat-label">设备数</div>
+                    </div>
+                    <div class="area-stat-item">
+                      <div class="area-stat-value">{{ area.level || 0 }}</div>
+                      <div class="area-stat-label">层级</div>
+                    </div>
+                    <div class="area-stat-item">
+                      <div class="area-stat-value">{{ area.children?.length || 0 }}</div>
+                      <div class="area-stat-label">子区域</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="area-actions">
+                  <el-button-group>
+                    <el-button size="small" @click="handleViewArea(area)">
+                      <el-icon><View /></el-icon>查看
+                    </el-button>
+                    <el-button size="small" type="primary" @click="handleEditArea(area)">
+                      <el-icon><Edit /></el-icon>编辑
+                    </el-button>
+                    <el-button size="small" type="danger" @click="handleDeleteArea(area)">
+                      <el-icon><Delete /></el-icon>删除
+                    </el-button>
+                  </el-button-group>
+                </div>
               </div>
-              
-              <div class="area-actions">
-                <el-button-group>
-                  <el-button size="small" @click="handleViewArea(area)">
-                    <el-icon><View /></el-icon>查看
-                  </el-button>
-                  <el-button size="small" type="primary" @click="handleEditArea(area)">
-                    <el-icon><Edit /></el-icon>编辑
-                  </el-button>
-                  <el-button size="small" type="danger" @click="handleDeleteArea(area)">
-                    <el-icon><Delete /></el-icon>删除
-                  </el-button>
-                </el-button-group>
+            </el-col>
+          </el-row>
+          
+          <!-- 空状态 -->
+          <el-empty v-if="!loading && filteredAreas.length === 0" description="暂无区域数据" />
+        </template>
+        
+        <!-- 树形视图 -->
+        <template v-if="viewType === 'tree'">
+          <el-tree 
+            :data="areaTree" 
+            :props="{ children: 'children', label: 'name' }"
+            node-key="id"
+            default-expand-all
+            class="area-tree">
+            <template #default="{ node, data }">
+              <div class="custom-tree-node">
+                <div class="tree-node-content">
+                  <el-icon class="tree-icon">
+                    <OfficeBuilding v-if="data.level === 0" />
+                    <CopyDocument v-else-if="data.level === 1" />
+                    <House v-else-if="data.level === 2" />
+                    <Location v-else />
+                  </el-icon>
+                  <span>{{ data.name }}</span>
+                  <span class="area-count">({{ data.deviceCount || 0 }}台设备)</span>
+                  <el-tag size="small" type="success" class="area-status-tag">正常</el-tag>
+                </div>
+                <div class="tree-node-actions">
+                  <el-button-group>
+                    <el-button size="small" @click.stop="handleAddSubArea(data)">
+                      <el-icon><Plus /></el-icon>
+                    </el-button>
+                    <el-button size="small" type="primary" @click.stop="handleEditArea(data)">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                    <el-button size="small" type="danger" @click.stop="handleDeleteArea(data)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-button-group>
+                </div>
               </div>
-            </div>
-          </el-col>
-        </el-row>
-      </template>
-
-      <!-- 树形层级视图 -->
-      <template v-else>
-        <el-tree
-          v-loading="loading"
-          :data="areaTree"
-          node-key="id"
-          :props="{ label: 'name', children: 'children' }"
-          default-expand-all
-          :expand-on-click-node="false"
-          highlight-current
-        >
-          <template #default="{ node, data }">
-            <div class="custom-tree-node">
-              <div class="tree-node-content">
-                <el-icon v-if="data.type === 'building'" class="tree-icon"><OfficeBuilding /></el-icon>
-                <el-icon v-else-if="data.type === 'floor'" class="tree-icon"><CopyDocument /></el-icon>
-                <el-icon v-else-if="data.type === 'room'" class="tree-icon"><House /></el-icon>
-                <el-icon v-else class="tree-icon"><Location /></el-icon>
-                <span>{{ node.label }}</span>
-                <span class="area-count">({{ data.deviceCount }})</span>
-                <el-tag v-if="data.status !== '正常'" size="small" type="danger" class="area-status-tag">{{ data.status }}</el-tag>
-              </div>
-              
-              <div class="tree-node-actions">
-                <el-button size="small" text @click.stop="handleAddSubArea(data)">
-                  <el-icon><Plus /></el-icon>添加子区域
-                </el-button>
-                <el-button size="small" text @click.stop="handleViewArea(data)">
-                  <el-icon><View /></el-icon>
-                </el-button>
-                <el-button size="small" text type="primary" @click.stop="handleEditArea(data)">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-                <el-button size="small" text type="danger" @click.stop="handleDeleteArea(data)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
-            </div>
-          </template>
-        </el-tree>
-      </template>
+            </template>
+          </el-tree>
+          
+          <!-- 空状态 -->
+          <el-empty v-if="!loading && areaTree.length === 0" description="暂无区域数据" />
+        </template>
+      </div>
     </el-card>
 
-    <!-- 添加/编辑区域对话框 -->
-    <el-dialog
-      v-model="dialog.visible"
-      :title="dialog.title"
-      width="600px"
-      destroy-on-close
-      @closed="resetForm"
-    >
-      <el-form
-        ref="areaFormRef"
-        :model="areaForm"
-        :rules="areaRules"
-        label-width="100px"
-      >
+    <!-- 区域表单对话框 -->
+    <el-dialog v-model="dialog.visible" :title="dialog.title" width="600px" @close="resetForm">
+      <el-form ref="areaFormRef" :model="areaForm" :rules="areaRules" label-width="100px">
         <el-form-item label="区域名称" prop="name">
           <el-input v-model="areaForm.name" placeholder="请输入区域名称" />
         </el-form-item>
-        <el-form-item label="区域类型" prop="type">
-          <el-select v-model="areaForm.type" placeholder="请选择区域类型">
-            <el-option label="建筑" value="building">
-              <div class="icon-option">
-                <el-icon><OfficeBuilding /></el-icon>
-                <span>建筑</span>
-              </div>
-            </el-option>
-            <el-option label="楼层" value="floor">
-              <div class="icon-option">
-                <el-icon><CopyDocument /></el-icon>
-                <span>楼层</span>
-              </div>
-            </el-option>
-            <el-option label="房间" value="room">
-              <div class="icon-option">
-                <el-icon><House /></el-icon>
-                <span>房间</span>
-              </div>
-            </el-option>
-            <el-option label="区域" value="area">
-              <div class="icon-option">
-                <el-icon><Location /></el-icon>
-                <span>区域</span>
-              </div>
-            </el-option>
-          </el-select>
+        
+        <el-form-item label="区域编码" prop="code">
+          <el-input v-model="areaForm.code" placeholder="请输入区域编码（可选）" />
         </el-form-item>
-        <el-form-item label="父级区域" prop="parentId">
+        
+        <el-form-item label="父区域" prop="parentId" v-if="dialog.type !== 'addSub'">
           <el-cascader
             v-model="areaForm.parentId"
             :options="areaOptions"
-            :props="{ checkStrictly: true, value: 'id', label: 'name', emitPath: false }"
-            placeholder="顶级区域"
+            :props="{ value: 'id', label: 'name', checkStrictly: true }"
+            placeholder="请选择父区域（可选）"
             clearable
+            style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="区域状态" prop="status">
-          <el-select v-model="areaForm.status" placeholder="请选择区域状态">
-            <el-option label="正常" value="正常" />
-            <el-option label="维护中" value="维护中" />
-            <el-option label="故障" value="故障" />
-          </el-select>
+        
+        <el-form-item label="排序" prop="sortOrder">
+          <el-input-number v-model="areaForm.sortOrder" :min="0" placeholder="排序值" />
         </el-form-item>
-        <el-form-item label="区域地址" prop="address">
-          <el-input v-model="areaForm.address" placeholder="请输入区域地址" />
+        
+        <el-form-item label="位置信息" prop="locationInfo">
+          <el-input 
+            v-model="areaForm.locationInfo" 
+            type="textarea" 
+            :rows="2"
+            placeholder="请输入位置信息JSON（可选）" 
+          />
         </el-form-item>
+        
         <el-form-item label="描述" prop="description">
-          <el-input v-model="areaForm.description" type="textarea" rows="3" placeholder="请输入描述" />
+          <el-input 
+            v-model="areaForm.description" 
+            type="textarea" 
+            :rows="3"
+            placeholder="请输入区域描述" 
+          />
         </el-form-item>
       </el-form>
+      
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialog.visible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确认</el-button>
+          <el-button type="primary" @click="submitForm" :loading="submitting">确定</el-button>
         </div>
       </template>
     </el-dialog>
 
     <!-- 区域详情对话框 -->
-    <el-dialog
-      v-model="detailDialog.visible"
-      title="区域详情"
-      width="800px"
-      destroy-on-close
-    >
-      <el-descriptions :column="2" border>
-        <el-descriptions-item label="区域名称" :span="2">
-          <div class="area-detail-title">
-            <el-icon v-if="currentArea.type === 'building'"><OfficeBuilding /></el-icon>
-            <el-icon v-else-if="currentArea.type === 'floor'"><CopyDocument /></el-icon>
-            <el-icon v-else-if="currentArea.type === 'room'"><House /></el-icon>
-            <el-icon v-else><Location /></el-icon>
-            {{ currentArea.name }}
-            <el-tag size="small" :type="currentArea.status === '正常' ? 'success' : 'danger'">
-              {{ currentArea.status }}
-            </el-tag>
-          </div>
-        </el-descriptions-item>
-        <el-descriptions-item label="区域类型">
-          {{ {building: '建筑', floor: '楼层', room: '房间', area: '区域'}[currentArea.type] || '区域' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="区域路径">{{ currentArea.path || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="设备数量">{{ currentArea.deviceCount || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="在线设备">{{ currentArea.onlineCount || 0 }}</el-descriptions-item>
-        <el-descriptions-item label="区域地址" :span="2">{{ currentArea.address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentArea.createdTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ currentArea.updatedTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="描述" :span="2">{{ currentArea.description || '暂无描述' }}</el-descriptions-item>
-      </el-descriptions>
-      
-      <div class="area-detail-stats">
-        <h4>设备统计</h4>
-        <div class="stats-cards">
-          <div class="stat-card">
-            <div class="stat-icon">
-              <el-icon><VideoCamera /></el-icon>
+    <el-dialog v-model="detailDialog.visible" title="区域详情" width="800px">
+      <div class="area-detail">
+        <div class="area-detail-title">
+          <el-icon><Location /></el-icon>
+          <span>{{ currentArea.name }}</span>
+        </div>
+        
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="区域名称">{{ currentArea.name }}</el-descriptions-item>
+          <el-descriptions-item label="区域编码">{{ currentArea.code || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="完整路径">{{ currentArea.fullPath || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="层级">{{ currentArea.level || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="排序">{{ currentArea.sortOrder || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ currentArea.createdAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="描述" :span="2">{{ currentArea.description || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <div class="area-detail-stats">
+          <div class="stats-cards">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Monitor /></el-icon>
+              </div>
+              <div>
+                <div class="stat-value">{{ currentArea.deviceCount || 0 }}</div>
+                <div class="stat-label">设备总数</div>
+              </div>
             </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ currentArea.deviceTypeStats?.camera || 0 }}</div>
-              <div class="stat-label">摄像头</div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><VideoCamera /></el-icon>
+              </div>
+              <div>
+                <div class="stat-value">{{ currentArea.children?.length || 0 }}</div>
+                <div class="stat-label">子区域</div>
+              </div>
             </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">
-              <el-icon><Odometer /></el-icon>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Odometer /></el-icon>
+              </div>
+              <div>
+                <div class="stat-value">{{ currentArea.level || 0 }}</div>
+                <div class="stat-label">层级</div>
+              </div>
             </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ currentArea.deviceTypeStats?.sensor || 0 }}</div>
-              <div class="stat-label">传感器</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">
-              <el-icon><Key /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ currentArea.deviceTypeStats?.access || 0 }}</div>
-              <div class="stat-label">门禁</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">
-              <el-icon><Monitor /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ currentArea.deviceTypeStats?.other || 0 }}</div>
-              <div class="stat-label">其他设备</div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <el-icon><Key /></el-icon>
+              </div>
+              <div>
+                <div class="stat-value">正常</div>
+                <div class="stat-label">状态</div>
+              </div>
             </div>
           </div>
         </div>
@@ -310,6 +279,15 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  getDeviceAreas, 
+  getDeviceAreaTree, 
+  createDeviceArea, 
+  updateDeviceArea, 
+  deleteDeviceArea,
+  validateAreaName,
+  validateAreaCode
+} from '@/api/device'
 import {
   Plus, Edit, Delete, View, Search, MapLocation, Grid, Histogram,
   OfficeBuilding, CopyDocument, House, Location, VideoCamera, Odometer, Key, Monitor
@@ -325,6 +303,7 @@ const searchKeyword = ref('')
 
 // 加载状态
 const loading = ref(false)
+const submitting = ref(false)
 
 // 区域数据
 const areas = ref([])
@@ -354,21 +333,62 @@ const areaFormRef = ref(null)
 const areaForm = reactive({
   id: null,
   name: '',
-  type: 'area',
+  code: '',
   parentId: null,
-  status: '正常',
-  address: '',
-  description: ''
+  description: '',
+  locationInfo: '',
+  sortOrder: 0
 })
 
 // 表单验证规则
 const areaRules = {
   name: [
     { required: true, message: '请输入区域名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
+    { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' },
+    {
+      validator: async (rule, value, callback) => {
+        if (value && value.trim()) {
+          try {
+            const response = await validateAreaName(value.trim(), areaForm.id)
+            if (response.code === 200 && !response.data.isUnique) {
+              callback(new Error('区域名称已存在'))
+            } else {
+              callback()
+            }
+          } catch (error) {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
-  type: [
-    { required: true, message: '请选择区域类型', trigger: 'change' }
+  code: [
+    { max: 50, message: '编码长度不能超过50个字符', trigger: 'blur' },
+    {
+      validator: async (rule, value, callback) => {
+        if (value && value.trim()) {
+          try {
+            const response = await validateAreaCode(value.trim(), areaForm.id)
+            if (response.code === 200 && !response.data.isUnique) {
+              callback(new Error('区域编码已存在'))
+            } else {
+              callback()
+            }
+          } catch (error) {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+  description: [
+    { max: 500, message: '描述长度不能超过500个字符', trigger: 'blur' }
   ]
 }
 
@@ -382,265 +402,51 @@ const filteredAreas = computed(() => {
   }
   return areas.value.filter(area => 
     area.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) || 
-    (area.path && area.path.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
+    (area.code && area.code.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
+    (area.fullPath && area.fullPath.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
     (area.description && area.description.toLowerCase().includes(searchKeyword.value.toLowerCase()))
   )
 })
 
 // 获取区域列表
-const getAreaList = () => {
-  loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    // Mock数据
-    areas.value = [
-      {
-        id: 1,
-        name: '总部大楼',
-        type: 'building',
-        path: '/总部大楼',
-        status: '正常',
-        address: '北京市朝阳区科技园区88号',
-        deviceCount: 120,
-        onlineCount: 115,
-        alertCount: 2,
-        description: '公司总部办公大楼',
-        createdTime: '2023-04-01 08:00:00',
-        updatedTime: '2023-06-15 14:30:00',
-        deviceTypeStats: {
-          camera: 60,
-          sensor: 40,
-          access: 15,
-          other: 5
-        }
-      },
-      {
-        id: 2,
-        name: '研发中心',
-        type: 'building',
-        path: '/研发中心',
-        status: '正常',
-        address: '北京市海淀区中关村南大街5号',
-        deviceCount: 80,
-        onlineCount: 78,
-        alertCount: 0,
-        description: '研发团队办公场所',
-        createdTime: '2023-04-15 09:00:00',
-        updatedTime: '2023-06-20 11:20:00',
-        deviceTypeStats: {
-          camera: 30,
-          sensor: 35,
-          access: 10,
-          other: 5
-        }
-      },
-      {
-        id: 3,
-        name: '生产基地',
-        type: 'building',
-        path: '/生产基地',
-        status: '维护中',
-        address: '河北省廊坊市开发区创业路18号',
-        deviceCount: 150,
-        onlineCount: 130,
-        alertCount: 5,
-        description: '产品生产和装配工厂',
-        createdTime: '2023-05-01 08:30:00',
-        updatedTime: '2023-06-25 16:40:00',
-        deviceTypeStats: {
-          camera: 80,
-          sensor: 50,
-          access: 15,
-          other: 5
-        }
-      },
-      {
-        id: 4,
-        name: '数据中心',
-        type: 'building',
-        path: '/数据中心',
-        status: '正常',
-        address: '北京市顺义区后沙峪镇安福街10号',
-        deviceCount: 200,
-        onlineCount: 198,
-        alertCount: 1,
-        description: '公司核心数据存储与处理中心',
-        createdTime: '2023-05-10 10:00:00',
-        updatedTime: '2023-06-28 09:15:00',
-        deviceTypeStats: {
-          camera: 50,
-          sensor: 120,
-          access: 20,
-          other: 10
-        }
-      },
-      {
-        id: 5,
-        name: '物流仓库',
-        type: 'building',
-        path: '/物流仓库',
-        status: '故障',
-        address: '天津市武清区高村科技园区23号',
-        deviceCount: 60,
-        onlineCount: 48,
-        alertCount: 8,
-        description: '产品仓储和物流配送中心',
-        createdTime: '2023-05-20 09:45:00',
-        updatedTime: '2023-07-01 15:30:00',
-        deviceTypeStats: {
-          camera: 30,
-          sensor: 20,
-          access: 8,
-          other: 2
-        }
-      }
-    ]
+const getAreaList = async () => {
+  try {
+    loading.value = true
     
-    // 构建树形结构
-    buildAreaTree()
+    const response = await getDeviceAreas()
     
-    // 构建区域选项
-    buildAreaOptions()
-    
+    if (response.code === 200) {
+      areas.value = response.data?.content || []
+    } else {
+      ElMessage.error(response.message || '获取设备区域失败')
+      areas.value = []
+    }
+  } catch (error) {
+    console.error('获取设备区域失败', error)
+    ElMessage.error('获取设备区域失败：' + (error.message || '网络错误'))
+    areas.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
-// 构建树形结构
-const buildAreaTree = () => {
-  const treeData = [
-    {
-      id: 1,
-      name: '总部大楼',
-      type: 'building',
-      status: '正常',
-      deviceCount: 120,
-      children: [
-        {
-          id: 11,
-          name: '1层',
-          type: 'floor',
-          status: '正常',
-          deviceCount: 30,
-          children: [
-            {
-              id: 111,
-              name: '大厅',
-              type: 'room',
-              status: '正常',
-              deviceCount: 15
-            },
-            {
-              id: 112,
-              name: '安保室',
-              type: 'room',
-              status: '正常',
-              deviceCount: 8
-            },
-            {
-              id: 113,
-              name: '会议室',
-              type: 'room',
-              status: '故障',
-              deviceCount: 7
-            }
-          ]
-        },
-        {
-          id: 12,
-          name: '2层',
-          type: 'floor',
-          status: '正常',
-          deviceCount: 40,
-          children: [
-            {
-              id: 121,
-              name: '办公区',
-              type: 'room',
-              status: '正常',
-              deviceCount: 25
-            },
-            {
-              id: 122,
-              name: '休息区',
-              type: 'room',
-              status: '正常',
-              deviceCount: 15
-            }
-          ]
-        },
-        {
-          id: 13,
-          name: '3层',
-          type: 'floor',
-          status: '维护中',
-          deviceCount: 50,
-          children: [
-            {
-              id: 131,
-              name: '机房',
-              type: 'room',
-              status: '维护中',
-              deviceCount: 35
-            },
-            {
-              id: 132,
-              name: '监控中心',
-              type: 'room',
-              status: '正常',
-              deviceCount: 15
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: '研发中心',
-      type: 'building',
-      status: '正常',
-      deviceCount: 80,
-      children: [
-        {
-          id: 21,
-          name: '1层',
-          type: 'floor',
-          status: '正常',
-          deviceCount: 40
-        },
-        {
-          id: 22,
-          name: '2层',
-          type: 'floor',
-          status: '正常',
-          deviceCount: 40
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: '生产基地',
-      type: 'building',
-      status: '维护中',
-      deviceCount: 150
-    },
-    {
-      id: 4,
-      name: '数据中心',
-      type: 'building',
-      status: '正常',
-      deviceCount: 200
-    },
-    {
-      id: 5,
-      name: '物流仓库',
-      type: 'building',
-      status: '故障',
-      deviceCount: 60
+// 获取区域树形结构
+const getAreaTreeData = async () => {
+  try {
+    const response = await getDeviceAreaTree()
+    
+    if (response.code === 200) {
+      areaTree.value = response.data || []
+      buildAreaOptions()
+    } else {
+      ElMessage.error(response.message || '获取区域树形结构失败')
+      areaTree.value = []
     }
-  ]
-  
-  areaTree.value = treeData
+  } catch (error) {
+    console.error('获取区域树形结构失败', error)
+    ElMessage.error('获取区域树形结构失败：' + (error.message || '网络错误'))
+    areaTree.value = []
+  }
 }
 
 // 构建区域选项（用于级联选择器）
@@ -669,14 +475,14 @@ const buildAreaOptions = () => {
 
 // 搜索
 const handleSearch = () => {
-  // 实际项目中应该调用API
-  console.log('搜索关键词:', searchKeyword.value)
+  getAreaList()
 }
 
 // 添加区域
 const handleAddArea = () => {
   dialog.title = '添加区域'
   dialog.type = 'add'
+  resetForm()
   dialog.visible = true
 }
 
@@ -696,11 +502,11 @@ const handleEditArea = (area) => {
   Object.assign(areaForm, {
     id: area.id,
     name: area.name,
-    type: area.type,
-    parentId: null, // 实际中应该是父ID
-    status: area.status,
-    address: area.address || '',
-    description: area.description || ''
+    code: area.code || '',
+    parentId: area.parentId,
+    description: area.description || '',
+    locationInfo: area.locationInfo || '',
+    sortOrder: area.sortOrder || 0
   })
   dialog.visible = true
 }
@@ -718,7 +524,6 @@ const handleViewDevices = (area) => {
     type: 'info',
     message: `跳转到设备列表，并按区域"${area.name}"过滤`
   })
-  // 实际项目中应该跳转到设备列表页面并携带过滤参数
   router.push({
     path: '/device',
     query: { areaId: area.id }
@@ -734,25 +539,36 @@ const handleViewMap = () => {
 }
 
 // 删除区域
-const handleDeleteArea = (area) => {
-  ElMessageBox.confirm(
-    `确认删除区域"${area.name}"吗？删除后其下所有子区域将一并删除！`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDeleteArea = async (area) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除区域"${area.name}"吗？删除后其下所有子区域将一并删除！`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceArea(area.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `区域"${area.name}"已删除`,
       })
       getAreaList()
-    })
-    .catch(() => {})
+      getAreaTreeData()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除区域失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 重置表单
@@ -764,11 +580,11 @@ const resetForm = () => {
   Object.assign(areaForm, {
     id: null,
     name: '',
-    type: 'area',
+    code: '',
     parentId: null,
-    status: '正常',
-    address: '',
-    description: ''
+    description: '',
+    locationInfo: '',
+    sortOrder: 0
   })
 }
 
@@ -776,24 +592,41 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!areaFormRef.value) return
   
-  await areaFormRef.value.validate((valid) => {
-    if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getAreaList()
-      }, 500)
+  try {
+    await areaFormRef.value.validate()
+    
+    submitting.value = true
+    
+    let response
+    if (dialog.type === 'edit') {
+      response = await updateDeviceArea(areaForm.id, areaForm)
+    } else {
+      response = await createDeviceArea(areaForm)
     }
-  })
+    
+    if (response.code === 200) {
+      ElMessage({
+        type: 'success',
+        message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+      })
+      dialog.visible = false
+      getAreaList()
+      getAreaTreeData()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('操作失败', error)
+    ElMessage.error('操作失败：' + (error.message || '网络错误'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 初始化
 onMounted(() => {
   getAreaList()
+  getAreaTreeData()
 })
 </script>
 
@@ -868,22 +701,22 @@ onMounted(() => {
   margin-right: 12px;
 }
 
-.area-icon-building {
+.area-icon-level-0 {
   background-color: var(--el-color-primary-light-8);
   color: var(--el-color-primary);
 }
 
-.area-icon-floor {
+.area-icon-level-1 {
   background-color: var(--el-color-success-light-8);
   color: var(--el-color-success);
 }
 
-.area-icon-room {
+.area-icon-level-2 {
   background-color: var(--el-color-warning-light-8);
   color: var(--el-color-warning);
 }
 
-.area-icon-area {
+.area-icon-level-3 {
   background-color: var(--el-color-info-light-8);
   color: var(--el-color-info);
 }
@@ -990,6 +823,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-weight: bold;
+  margin-bottom: 20px;
 }
 
 .area-detail-stats {
@@ -1033,12 +867,6 @@ onMounted(() => {
 .stat-label {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-}
-
-.icon-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .dialog-footer {

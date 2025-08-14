@@ -187,33 +187,18 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="颜色" prop="bgColor">
+        <el-form-item label="颜色" prop="color">
           <div class="color-selector">
             <div 
-              v-for="color in predefinedColors" 
-              :key="color.bg"
-              :style="{ backgroundColor: color.bg }"
+              v-for="color in presetColors" 
+              :key="color"
+              :style="{ backgroundColor: color }"
               class="color-option"
-              :class="{ selected: tagForm.bgColor === color.bg }"
+              :class="{ selected: tagForm.color === color }"
               @click="selectColor(color)"
             ></div>
           </div>
-          <el-color-picker v-model="tagForm.bgColor" show-alpha />
-        </el-form-item>
-        
-        <el-form-item label="文本颜色" prop="textColor">
-          <el-radio-group v-model="tagForm.textColor">
-            <el-radio label="#ffffff">白色</el-radio>
-            <el-radio label="#000000">黑色</el-radio>
-          </el-radio-group>
-          <div class="preview-box">
-            <el-tag 
-              :color="tagForm.bgColor" 
-              :style="{ color: tagForm.textColor }"
-            >
-              {{ tagForm.name || '标签预览' }}
-            </el-tag>
-          </div>
+          <el-color-picker v-model="tagForm.color" show-alpha />
         </el-form-item>
         
         <el-form-item label="描述" prop="description">
@@ -223,7 +208,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialog.visible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确认</el-button>
+          <el-button type="primary" @click="submitForm" :loading="submitting">确认</el-button>
         </div>
       </template>
     </el-dialog>
@@ -234,8 +219,16 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus, Edit, Delete, View, Search, List, Monitor, Timer,
+import { 
+  getDeviceTags, 
+  getAllDeviceTags,
+  getPopularTags,
+  createDeviceTag, 
+  updateDeviceTag, 
+  deleteDeviceTag,
+  validateTagName
+} from '@/api/device'
+import { Plus, Edit, Delete, Search, List, Monitor, Timer,
   VideoCamera, Odometer, Key
 } from '@element-plus/icons-vue'
 
@@ -255,19 +248,73 @@ const selectedTags = ref([])
 
 // 加载状态
 const loading = ref(false)
+const submitting = ref(false)
 
 // 标签数据
 const tags = ref([])
 
-// 标签过滤器
-const filterTags = ref([
-  { id: 1, name: '重要', bgColor: '#e3f2fd', textColor: '#0d47a1', category: 'status' },
-  { id: 2, name: '在线', bgColor: '#e8f5e9', textColor: '#1b5e20', category: 'status' },
-  { id: 3, name: '离线', bgColor: '#fff3e0', textColor: '#e65100', category: 'status' },
-  { id: 4, name: '报警', bgColor: '#fce4ec', textColor: '#880e4f', category: 'status' },
-  { id: 5, name: '维护', bgColor: '#f3e5f5', textColor: '#4a148c', category: 'status' },
-  { id: 6, name: '高清', bgColor: '#e0f7fa', textColor: '#006064', category: 'feature' }
-])
+// 热门标签
+const popularTags = ref([])
+
+// 当前标签
+const currentTag = ref({})
+
+// 对话框状态
+const dialog = reactive({
+  visible: false,
+  title: '添加标签',
+  type: 'add' // add, edit
+})
+
+// 表单引用
+const tagFormRef = ref(null)
+
+// 标签表单
+const tagForm = reactive({
+  id: null,
+  name: '',
+  color: '#409EFF',
+  description: ''
+})
+
+// 表单验证规则
+const tagRules = {
+  name: [
+    { required: true, message: '请输入标签名称', trigger: 'blur' },
+    { min: 1, max: 20, message: '长度在 1 到 20 个字符', trigger: 'blur' },
+    {
+      validator: async (rule, value, callback) => {
+        if (value && value.trim()) {
+          try {
+            const response = await validateTagName(value.trim(), tagForm.id)
+            if (response.code === 200 && !response.data.isUnique) {
+              callback(new Error('标签名称已存在'))
+            } else {
+              callback()
+            }
+          } catch (error) {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
+  category: [
+    { required: true, message: '请选择标签类别', trigger: 'change' }
+  ],
+  bgColor: [
+    { required: true, message: '请选择标签颜色', trigger: 'change' }
+  ],
+  textColor: [
+    { required: true, message: '请选择文本颜色', trigger: 'change' }
+  ],
+  description: [
+    { max: 200, message: '描述长度不能超过200个字符', trigger: 'blur' }
+  ]
+}
 
 // 预定义的颜色
 const predefinedColors = [
@@ -319,37 +366,6 @@ const filteredTags = computed(() => {
   return result
 })
 
-// 对话框状态
-const dialog = reactive({
-  visible: false,
-  title: '添加标签',
-  type: 'add' // add, edit
-})
-
-// 表单引用
-const tagFormRef = ref(null)
-
-// 标签表单
-const tagForm = reactive({
-  id: null,
-  name: '',
-  category: 'custom',
-  bgColor: '#e3f2fd',
-  textColor: '#0d47a1',
-  description: ''
-})
-
-// 表单验证规则
-const tagRules = {
-  name: [
-    { required: true, message: '请输入标签名称', trigger: 'blur' },
-    { min: 1, max: 20, message: '长度在 1 到 20 个字符', trigger: 'blur' }
-  ],
-  category: [
-    { required: true, message: '请选择标签类别', trigger: 'change' }
-  ]
-}
-
 // 获取类别标签
 const getCategoryLabel = (category) => {
   const categories = {
@@ -383,190 +399,46 @@ const getDeviceTypeClass = (type) => {
 }
 
 // 获取标签列表
-const getTagList = () => {
-  loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    // Mock数据
-    tags.value = [
-      {
-        id: 1,
-        name: '重要',
-        category: 'status',
-        bgColor: '#e3f2fd',
-        textColor: '#0d47a1',
-        description: '标记关键设备，需要优先保障',
-        deviceCount: 15,
-        createdTime: '2023-06-01',
-        recentDevices: [
-          { id: 101, name: '前门摄像头01', type: 'camera', status: 'online' },
-          { id: 102, name: '后门摄像头03', type: 'camera', status: 'online' },
-          { id: 103, name: '大厅摄像头02', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 2,
-        name: '在线',
-        category: 'status',
-        bgColor: '#e8f5e9',
-        textColor: '#1b5e20',
-        description: '设备当前处于在线状态',
-        deviceCount: 42,
-        createdTime: '2023-06-01',
-        recentDevices: [
-          { id: 101, name: '前门摄像头01', type: 'camera', status: 'online' },
-          { id: 104, name: '温度传感器01', type: 'sensor', status: 'online' },
-          { id: 105, name: '大门门禁01', type: 'access', status: 'online' }
-        ]
-      },
-      {
-        id: 3,
-        name: '离线',
-        category: 'status',
-        bgColor: '#fff3e0',
-        textColor: '#e65100',
-        description: '设备当前处于离线状态',
-        deviceCount: 8,
-        createdTime: '2023-06-01',
-        recentDevices: [
-          { id: 106, name: '楼梯间摄像头02', type: 'camera', status: 'offline' },
-          { id: 107, name: '地下室摄像头01', type: 'camera', status: 'offline' }
-        ]
-      },
-      {
-        id: 4,
-        name: '报警',
-        category: 'status',
-        bgColor: '#fce4ec',
-        textColor: '#880e4f',
-        description: '设备当前有报警信息',
-        deviceCount: 3,
-        createdTime: '2023-06-01',
-        recentDevices: [
-          { id: 108, name: '烟雾传感器03', type: 'sensor', status: 'error' },
-          { id: 109, name: '后门门禁02', type: 'access', status: 'error' }
-        ]
-      },
-      {
-        id: 5,
-        name: '维护',
-        category: 'status',
-        bgColor: '#f3e5f5',
-        textColor: '#4a148c',
-        description: '设备当前处于维护状态',
-        deviceCount: 5,
-        createdTime: '2023-06-01',
-        recentDevices: [
-          { id: 110, name: '车库摄像头02', type: 'camera', status: 'maintenance' },
-          { id: 111, name: '电梯摄像头01', type: 'camera', status: 'maintenance' }
-        ]
-      },
-      {
-        id: 6,
-        name: '高清',
-        category: 'feature',
-        bgColor: '#e0f7fa',
-        textColor: '#006064',
-        description: '高清摄像头，分辨率≥1080p',
-        deviceCount: 20,
-        createdTime: '2023-06-05',
-        recentDevices: [
-          { id: 101, name: '前门摄像头01', type: 'camera', status: 'online' },
-          { id: 102, name: '后门摄像头03', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 7,
-        name: '4K',
-        category: 'feature',
-        bgColor: '#e8eaf6',
-        textColor: '#1a237e',
-        description: '4K超高清摄像头',
-        deviceCount: 8,
-        createdTime: '2023-06-10',
-        recentDevices: [
-          { id: 112, name: '大厅摄像头01', type: 'camera', status: 'online' },
-          { id: 113, name: '会议室摄像头01', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 8,
-        name: '云台',
-        category: 'feature',
-        bgColor: '#ede7f6',
-        textColor: '#311b92',
-        description: '带云台控制功能的摄像头',
-        deviceCount: 12,
-        createdTime: '2023-06-12',
-        recentDevices: [
-          { id: 114, name: '门口球机01', type: 'camera', status: 'online' },
-          { id: 115, name: '院内球机03', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 9,
-        name: '红外',
-        category: 'feature',
-        bgColor: '#ffebee',
-        textColor: '#b71c1c',
-        description: '具有红外夜视功能的摄像头',
-        deviceCount: 16,
-        createdTime: '2023-06-15',
-        recentDevices: [
-          { id: 116, name: '围墙摄像头01', type: 'camera', status: 'online' },
-          { id: 117, name: '围墙摄像头02', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 10,
-        name: '门厅',
-        category: 'location',
-        bgColor: '#fffde7',
-        textColor: '#f57f17',
-        description: '位于门厅区域的设备',
-        deviceCount: 6,
-        createdTime: '2023-06-20',
-        recentDevices: [
-          { id: 118, name: '门厅摄像头01', type: 'camera', status: 'online' },
-          { id: 119, name: '门厅摄像头02', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 11,
-        name: '室外',
-        category: 'location',
-        bgColor: '#e0f2f1',
-        textColor: '#004d40',
-        description: '室外安装的设备',
-        deviceCount: 18,
-        createdTime: '2023-06-25',
-        recentDevices: [
-          { id: 120, name: '院内摄像头01', type: 'camera', status: 'online' },
-          { id: 121, name: '停车场摄像头02', type: 'camera', status: 'online' }
-        ]
-      },
-      {
-        id: 12,
-        name: 'WiFi',
-        category: 'custom',
-        bgColor: '#efebe9',
-        textColor: '#3e2723',
-        description: '通过WiFi连接的设备',
-        deviceCount: 10,
-        createdTime: '2023-07-01',
-        recentDevices: [
-          { id: 122, name: '便携摄像头01', type: 'camera', status: 'online' },
-          { id: 123, name: '温度传感器05', type: 'sensor', status: 'online' }
-        ]
-      }
-    ]
+const getTagList = async () => {
+  try {
+    loading.value = true
+    
+    const response = await getDeviceTags()
+    
+    if (response.code === 200) {
+      tags.value = response.data?.content || []
+    } else {
+      ElMessage.error(response.message || '获取设备标签失败')
+      tags.value = []
+    }
+  } catch (error) {
+    console.error('获取设备标签失败', error)
+    ElMessage.error('获取设备标签失败：' + (error.message || '网络错误'))
+    tags.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
-// 搜索标签
+// 获取热门标签
+const getPopularTagList = async () => {
+  try {
+    const response = await getPopularTags()
+    
+    if (response.code === 200) {
+      popularTags.value = response.data || []
+    } else {
+      popularTags.value = []
+    }
+  } catch (error) {
+    console.error('获取热门标签失败', error)
+    popularTags.value = []
+  }
+}
+
+// 搜索
 const handleSearch = () => {
-  // 使用计算属性自动过滤
+  getTagList()
 }
 
 // 标签过滤
@@ -595,6 +467,7 @@ const handleDeviceList = () => {
 const handleAddTag = () => {
   dialog.title = '添加标签'
   dialog.type = 'add'
+  resetForm()
   dialog.visible = true
 }
 
@@ -627,31 +500,41 @@ const handleViewDevices = (tag) => {
 }
 
 // 删除标签
-const handleDeleteTag = (tag) => {
-  ElMessageBox.confirm(
-    `确认删除标签"${tag.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDeleteTag = async (tag) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除标签"${tag.name}"吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceTag(tag.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `标签"${tag.name}"已删除`,
       })
-      tags.value = tags.value.filter(item => item.id !== tag.id)
-    })
-    .catch(() => {})
+      getTagList()
+      getPopularTagList()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除标签失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 选择颜色
 const selectColor = (color) => {
-  tagForm.bgColor = color.bg
-  tagForm.textColor = color.text
+  tagForm.color = color
 }
 
 // 重置表单
@@ -674,24 +557,41 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!tagFormRef.value) return
   
-  await tagFormRef.value.validate((valid) => {
-    if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getTagList()
-      }, 500)
+  try {
+    await tagFormRef.value.validate()
+    
+    submitting.value = true
+    
+    let response
+    if (dialog.type === 'edit') {
+      response = await updateDeviceTag(tagForm.id, tagForm)
+    } else {
+      response = await createDeviceTag(tagForm)
     }
-  })
+    
+    if (response.code === 200) {
+      ElMessage({
+        type: 'success',
+        message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+      })
+      dialog.visible = false
+      getTagList()
+      getPopularTagList()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('操作失败', error)
+    ElMessage.error('操作失败：' + (error.message || '网络错误'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 初始化
 onMounted(() => {
   getTagList()
+  getPopularTagList()
 })
 </script>
 

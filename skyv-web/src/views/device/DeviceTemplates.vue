@@ -18,8 +18,8 @@
           <div class="filter-categories">
             <el-radio-group v-model="filterCategory" size="small">
               <el-radio-button label="">全部</el-radio-button>
-              <el-radio-button label="official">官方模板</el-radio-button>
-              <el-radio-button label="custom">自定义模板</el-radio-button>
+              <el-radio-button label="enabled">启用</el-radio-button>
+              <el-radio-button label="disabled">禁用</el-radio-button>
             </el-radio-group>
           </div>
         </div>
@@ -89,7 +89,7 @@
             </div>
             
             <div class="template-actions">
-              <el-button type="primary" size="small" @click="handleUseTemplate(template)">使用模板</el-button>
+              <el-button type="primary" size="small" @click="handleApplyTemplate(template)">使用模板</el-button>
               <el-button type="info" size="small" @click="handleEditTemplate(template)">编辑</el-button>
               <el-button type="danger" size="small" @click="handleDeleteTemplate(template)">删除</el-button>
             </div>
@@ -125,22 +125,65 @@
           <el-input v-model="templateForm.name" placeholder="请输入模板名称" />
         </el-form-item>
         
-        <el-form-item label="模板分类" prop="category">
-          <el-select v-model="templateForm.category" placeholder="请选择模板分类" style="width: 100%">
-            <el-option label="官方模板" value="official" />
-            <el-option label="自定义模板" value="custom" />
+        <el-form-item label="模板编码" prop="code">
+          <el-input v-model="templateForm.code" placeholder="请输入模板编码" />
+        </el-form-item>
+        
+        <el-form-item label="设备类型" prop="deviceTypeId">
+          <el-select v-model="templateForm.deviceTypeId" placeholder="请选择设备类型" style="width: 100%">
+            <el-option
+              v-for="item in deviceTypes"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
           </el-select>
         </el-form-item>
         
-        <el-form-item label="适用设备类型" prop="deviceType">
-          <el-select v-model="templateForm.deviceType" placeholder="请选择设备类型" style="width: 100%">
-            <el-option label="摄像头" value="camera" />
-            <el-option label="门禁" value="access" />
-            <el-option label="传感器" value="sensor" />
-            <el-option label="报警器" value="alarm" />
-            <el-option label="录像机" value="nvr" />
-            <el-option label="其他" value="other" />
+        <el-form-item label="协议" prop="protocolId">
+          <el-select v-model="templateForm.protocolId" placeholder="请选择协议" style="width: 100%">
+            <el-option
+              v-for="item in protocols"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
           </el-select>
+        </el-form-item>
+        
+        <el-form-item label="制造商" prop="manufacturer">
+          <el-input v-model="templateForm.manufacturer" placeholder="请输入制造商" />
+        </el-form-item>
+        
+        <el-form-item label="型号" prop="model">
+          <el-input v-model="templateForm.model" placeholder="请输入型号" />
+        </el-form-item>
+        
+        <el-form-item label="配置模板" prop="configTemplate">
+          <el-input
+            v-model="templateForm.configTemplate"
+            type="textarea"
+            rows="3"
+            placeholder="请输入配置模板"
+          />
+        </el-form-item>
+        
+        <el-form-item label="默认设置" prop="defaultSettings">
+          <el-input
+            v-model="templateForm.defaultSettings"
+            type="textarea"
+            rows="3"
+            placeholder="请输入默认设置"
+          />
+        </el-form-item>
+        
+        <el-form-item label="指标" prop="metrics">
+          <el-input
+            v-model="templateForm.metrics"
+            type="textarea"
+            rows="3"
+            placeholder="请输入指标"
+          />
         </el-form-item>
         
         <el-form-item label="模板描述" prop="description">
@@ -152,30 +195,15 @@
           />
         </el-form-item>
         
-        <el-form-item label="模板标签">
-          <el-select
-            v-model="templateForm.tags"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="请输入或选择标签"
-            style="width: 100%"
-          >
-            <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="图标颜色">
-          <el-color-picker v-model="templateForm.iconColor" />
-          <el-color-picker v-model="templateForm.iconBg" />
+        <el-form-item label="启用状态" prop="isEnabled">
+          <el-switch v-model="templateForm.isEnabled" />
         </el-form-item>
       </el-form>
       
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialog.visible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确认</el-button>
+          <el-button type="primary" @click="submitForm" :loading="submitting">确认</el-button>
         </div>
       </template>
     </el-dialog>
@@ -186,9 +214,21 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  getDeviceTemplates, 
+  getAllEnabledTemplates,
+  getTemplatesByDeviceType,
+  createDeviceTemplate, 
+  updateDeviceTemplate, 
+  deleteDeviceTemplate,
+  validateTemplateCode,
+  validateTemplateName,
+  getDeviceTypes,
+  getAllEnabledProtocols
+} from '@/api/device'
 import {
-  Plus, Edit, Delete, View, Search, List, Monitor, Timer,
-  VideoCamera, Setting, Document, Connection
+  Plus, Edit, Delete, View, Search, List,
+  VideoCamera, Odometer, Key, Monitor, Setting, Star, Download
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -204,9 +244,16 @@ const sortOption = ref('default')
 
 // 加载状态
 const loading = ref(false)
+const submitting = ref(false)
 
 // 模板数据
 const templates = ref([])
+
+// 设备类型列表
+const deviceTypes = ref([])
+
+// 协议列表
+const protocols = ref([])
 
 // 根据搜索关键词、分类和排序过滤模板
 const filteredTemplates = computed(() => {
@@ -217,24 +264,26 @@ const filteredTemplates = computed(() => {
     const keyword = searchKeyword.value.toLowerCase()
     result = result.filter(template => 
       template.name.toLowerCase().includes(keyword) || 
-      (template.description && template.description.toLowerCase().includes(keyword))
+      template.code.toLowerCase().includes(keyword) ||
+      (template.description && template.description.toLowerCase().includes(keyword)) ||
+      (template.manufacturer && template.manufacturer.toLowerCase().includes(keyword))
     )
   }
 
-  // 模板分类过滤
-  if (filterCategory.value) {
-    result = result.filter(template => 
-      filterCategory.value === 'official' ? template.isOfficial : !template.isOfficial
-    )
+  // 启用状态过滤
+  if (filterCategory.value === 'enabled') {
+    result = result.filter(template => template.isEnabled)
+  } else if (filterCategory.value === 'disabled') {
+    result = result.filter(template => !template.isEnabled)
   }
 
   // 排序
   if (sortOption.value === 'usage') {
-    result = [...result].sort((a, b) => b.usageCount - a.usageCount)
+    result = [...result].sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
   } else if (sortOption.value === 'name') {
     result = [...result].sort((a, b) => a.name.localeCompare(b.name))
   } else if (sortOption.value === 'time') {
-    result = [...result].sort((a, b) => new Date(b.updateTime) - new Date(a.updateTime))
+    result = [...result].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
   }
 
   return result
@@ -250,159 +299,128 @@ const dialog = reactive({
 // 表单引用
 const templateFormRef = ref(null)
 
-// 可用标签
-const availableTags = ref([
-  'RTSP', 'ONVIF', 'H.264', 'H.265', 'GB28181', 'TCP', 'UDP', 'HTTP', 'HTTPS', 'WiFi', '4G', '5G'
-])
-
 // 模板表单
 const templateForm = reactive({
   id: null,
   name: '',
-  category: 'custom',
-  deviceType: '',
+  code: '',
+  deviceTypeId: null,
+  protocolId: null,
+  manufacturer: '',
+  model: '',
+  configTemplate: '',
+  defaultSettings: '',
+  metrics: '',
   description: '',
-  tags: [],
-  iconColor: '#FFFFFF',
-  iconBg: '#409EFF'
+  isEnabled: true
 })
 
 // 表单验证规则
 const templateRules = {
   name: [
     { required: true, message: '请输入模板名称', trigger: 'blur' },
-    { min: 1, max: 50, message: '长度在 1 到 50 个字符', trigger: 'blur' }
+    { min: 1, max: 100, message: '长度在 1 到 100 个字符', trigger: 'blur' },
+    {
+      validator: async (rule, value, callback) => {
+        if (value && value.trim()) {
+          try {
+            const response = await validateTemplateName(value.trim(), templateForm.id)
+            if (response.code === 200 && !response.data.isUnique) {
+              callback(new Error('模板名称已存在'))
+            } else {
+              callback()
+            }
+          } catch (error) {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
-  category: [
-    { required: true, message: '请选择模板分类', trigger: 'change' }
+  code: [
+    { required: true, message: '请输入模板编码', trigger: 'blur' },
+    { min: 1, max: 50, message: '长度在 1 到 50 个字符', trigger: 'blur' },
+    {
+      validator: async (rule, value, callback) => {
+        if (value && value.trim()) {
+          try {
+            const response = await validateTemplateCode(value.trim(), templateForm.id)
+            if (response.code === 200 && !response.data.isUnique) {
+              callback(new Error('模板编码已存在'))
+            } else {
+              callback()
+            }
+          } catch (error) {
+            callback()
+          }
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
-  deviceType: [
-    { required: true, message: '请选择适用设备类型', trigger: 'change' }
+  deviceTypeId: [
+    { required: true, message: '请选择设备类型', trigger: 'change' }
   ],
   description: [
-    { required: true, message: '请输入模板描述', trigger: 'blur' }
+    { max: 500, message: '描述长度不能超过500个字符', trigger: 'blur' }
   ]
 }
 
 // 获取模板列表
-const getTemplateList = () => {
-  loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    // Mock数据
-    templates.value = [
-      {
-        id: 1,
-        name: '海康摄像头标准模板',
-        subtitle: '适用于海康威视网络摄像头',
-        description: '海康威视网络摄像头标准配置模板，包含基本参数和网络设置',
-        isOfficial: true,
-        icon: 'VideoCamera',
-        iconBg: '#ecf5ff',
-        iconColor: '#409EFF',
-        usageCount: 15,
-        updateTime: '2023-03-10',
-        tags: ['RTSP', 'ONVIF', 'H.264']
-      },
-      {
-        id: 2,
-        name: '大华摄像头标准模板',
-        subtitle: '适用于大华网络摄像头',
-        description: '大华网络摄像头标准配置模板，包含基本参数和网络设置',
-        isOfficial: true,
-        icon: 'VideoCamera',
-        iconBg: '#f0f9eb',
-        iconColor: '#67C23A',
-        usageCount: 8,
-        updateTime: '2023-03-12',
-        tags: ['RTSP', 'ONVIF', 'H.264']
-      },
-      {
-        id: 3,
-        name: '宇视摄像头标准模板',
-        subtitle: '适用于宇视网络摄像头',
-        description: '宇视网络摄像头标准配置模板，包含基本参数和网络设置',
-        isOfficial: true,
-        icon: 'VideoCamera',
-        iconBg: '#fdf6ec',
-        iconColor: '#E6A23C',
-        usageCount: 6,
-        updateTime: '2023-03-15',
-        tags: ['RTSP', 'ONVIF', 'H.264']
-      },
-      {
-        id: 4,
-        name: '海康NVR标准模板',
-        subtitle: '适用于海康威视网络录像机',
-        description: '海康威视网络录像机标准配置模板，包含基本参数和网络设置',
-        isOfficial: true,
-        icon: 'Document',
-        iconBg: '#fef0f0',
-        iconColor: '#F56C6C',
-        usageCount: 10,
-        updateTime: '2023-03-20',
-        tags: ['RTSP', 'ONVIF', 'H.264', 'NVR']
-      },
-      {
-        id: 5,
-        name: '温湿度传感器模板',
-        subtitle: '适用于通用温湿度传感器',
-        description: '通用温湿度传感器配置模板，包含基本参数和数据采集设置',
-        isOfficial: true,
-        icon: 'Setting',
-        iconBg: '#f4f4f5',
-        iconColor: '#909399',
-        usageCount: 12,
-        updateTime: '2023-03-25',
-        tags: ['TCP', 'HTTP', 'Modbus']
-      },
-      {
-        id: 6,
-        name: '门禁控制器模板',
-        subtitle: '适用于通用门禁控制器',
-        description: '通用门禁控制器配置模板，包含基本参数和控制设置',
-        isOfficial: true,
-        icon: 'Connection',
-        iconBg: '#f0f9eb',
-        iconColor: '#67C23A',
-        usageCount: 7,
-        updateTime: '2023-04-01',
-        tags: ['TCP', 'HTTP', 'RS485']
-      },
-      {
-        id: 7,
-        name: '自定义摄像头模板',
-        subtitle: '用户自定义摄像头配置',
-        description: '用户自定义的摄像头配置模板，适用于特定场景',
-        isOfficial: false,
-        icon: 'VideoCamera',
-        iconBg: '#ecf5ff',
-        iconColor: '#409EFF',
-        usageCount: 3,
-        updateTime: '2023-04-10',
-        tags: ['RTSP', 'H.265', 'WiFi']
-      },
-      {
-        id: 8,
-        name: '4G摄像头模板',
-        subtitle: '适用于4G网络摄像头',
-        description: '4G网络摄像头配置模板，包含网络参数和流量控制',
-        isOfficial: false,
-        icon: 'VideoCamera',
-        iconBg: '#fdf6ec',
-        iconColor: '#E6A23C',
-        usageCount: 5,
-        updateTime: '2023-04-15',
-        tags: ['RTSP', 'H.264', '4G']
-      }
-    ]
+const getTemplateList = async () => {
+  try {
+    loading.value = true
+    
+    const response = await getDeviceTemplates()
+    
+    if (response.code === 200) {
+      templates.value = response.data?.content || []
+    } else {
+      ElMessage.error(response.message || '获取设备模板失败')
+      templates.value = []
+    }
+  } catch (error) {
+    console.error('获取设备模板失败', error)
+    ElMessage.error('获取设备模板失败：' + (error.message || '网络错误'))
+    templates.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
+}
+
+// 获取设备类型列表
+const getDeviceTypeList = async () => {
+  try {
+    const response = await getDeviceTypes()
+    if (response.code === 200) {
+      const data = response.data
+      deviceTypes.value = Array.isArray(data) ? data : (data?.content || [])
+    }
+  } catch (error) {
+    console.error('获取设备类型失败', error)
+  }
+}
+
+// 获取协议列表
+const getProtocolList = async () => {
+  try {
+    const response = await getAllEnabledProtocols()
+    if (response.code === 200) {
+      protocols.value = response.data || []
+    }
+  } catch (error) {
+    console.error('获取协议列表失败', error)
+  }
 }
 
 // 搜索模板
 const handleSearch = () => {
-  // 使用计算属性自动过滤
+  getTemplateList()
 }
 
 // 清除过滤
@@ -421,6 +439,7 @@ const handleDeviceList = () => {
 const handleAddTemplate = () => {
   dialog.title = '添加模板'
   dialog.type = 'add'
+  resetForm()
   dialog.visible = true
 }
 
@@ -431,23 +450,34 @@ const handleEditTemplate = (template) => {
   Object.assign(templateForm, {
     id: template.id,
     name: template.name,
-    category: template.isOfficial ? 'official' : 'custom',
-    deviceType: template.deviceType || '',
+    code: template.code,
+    deviceTypeId: template.deviceTypeId,
+    protocolId: template.protocolId,
+    manufacturer: template.manufacturer || '',
+    model: template.model || '',
+    configTemplate: template.configTemplate || '',
+    defaultSettings: template.defaultSettings || '',
+    metrics: template.metrics || '',
     description: template.description || '',
-    tags: template.tags ? [...template.tags] : [],
-    iconColor: template.iconColor,
-    iconBg: template.iconBg
+    isEnabled: template.isEnabled
   })
   dialog.visible = true
 }
 
-// 使用模板
-const handleUseTemplate = (template) => {
+// 查看模板
+const handleViewTemplate = (template) => {
   ElMessage({
     type: 'info',
-    message: `使用模板"${template.name}"创建设备`,
+    message: `查看模板"${template.name}"的详细信息`
   })
-  // 实际项目中应该跳转到设备添加页面并携带模板参数
+}
+
+// 应用模板
+const handleApplyTemplate = (template) => {
+  ElMessage({
+    type: 'info',
+    message: `使用模板"${template.name}"创建设备`
+  })
   router.push({
     path: '/device/add',
     query: { templateId: template.id }
@@ -455,25 +485,35 @@ const handleUseTemplate = (template) => {
 }
 
 // 删除模板
-const handleDeleteTemplate = (template) => {
-  ElMessageBox.confirm(
-    `确认删除模板"${template.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDeleteTemplate = async (template) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除模板"${template.name}"吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceTemplate(template.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `模板"${template.name}"已删除`,
       })
-      templates.value = templates.value.filter(item => item.id !== template.id)
-    })
-    .catch(() => {})
+      getTemplateList()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除模板失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 重置表单
@@ -485,12 +525,16 @@ const resetForm = () => {
   Object.assign(templateForm, {
     id: null,
     name: '',
-    category: 'custom',
-    deviceType: '',
+    code: '',
+    deviceTypeId: null,
+    protocolId: null,
+    manufacturer: '',
+    model: '',
+    configTemplate: '',
+    defaultSettings: '',
+    metrics: '',
     description: '',
-    tags: [],
-    iconColor: '#FFFFFF',
-    iconBg: '#409EFF'
+    isEnabled: true
   })
 }
 
@@ -498,24 +542,41 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!templateFormRef.value) return
   
-  await templateFormRef.value.validate((valid) => {
-    if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getTemplateList()
-      }, 500)
+  try {
+    await templateFormRef.value.validate()
+    
+    submitting.value = true
+    
+    let response
+    if (dialog.type === 'edit') {
+      response = await updateDeviceTemplate(templateForm.id, templateForm)
+    } else {
+      response = await createDeviceTemplate(templateForm)
     }
-  })
+    
+    if (response.code === 200) {
+      ElMessage({
+        type: 'success',
+        message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+      })
+      dialog.visible = false
+      getTemplateList()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('操作失败', error)
+    ElMessage.error('操作失败：' + (error.message || '网络错误'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 初始化
 onMounted(() => {
   getTemplateList()
+  getDeviceTypeList()
+  getProtocolList()
 })
 </script>
 

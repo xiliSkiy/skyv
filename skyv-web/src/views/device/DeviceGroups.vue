@@ -269,8 +269,15 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus, Edit, Delete, View, Search, List, Connection, MagicStick, Folder, FolderOpened,
+import { 
+  getAllDeviceGroups,
+  createDeviceGroup,
+  updateDeviceGroup,
+  deleteDeviceGroup,
+  checkDeviceGroupNameExists
+} from '@/api/device'
+import { 
+  Plus, Edit, Delete, View, Search, List, 
   Monitor, VideoPlay, Warning, Star, VideoCamera, Odometer
 } from '@element-plus/icons-vue'
 
@@ -365,99 +372,25 @@ const deviceSearchLoading = ref(false)
 const deviceOptions = ref([])
 
 // 获取分组列表
-const getGroupList = () => {
-  loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    // Mock数据
-    groups.value = [
-      {
-        id: 1,
-        name: '前端摄像头',
-        type: 'normal',
-        description: '负责监控园区前门区域的摄像设备',
-        deviceCount: 12,
-        onlineCount: 10,
-        alertCount: 1,
-        isImportant: true
-      },
-      {
-        id: 2,
-        name: '后门摄像头',
-        type: 'normal',
-        description: '负责监控园区后门区域的摄像设备',
-        deviceCount: 8,
-        onlineCount: 7,
-        alertCount: 0,
-        isImportant: false
-      },
-      {
-        id: 3,
-        name: '离线设备',
-        type: 'smart',
-        description: '当前所有处于离线状态的设备',
-        rule: '设备状态 = 离线',
-        deviceCount: 10,
-        onlineCount: 0,
-        alertCount: 3,
-        isImportant: true
-      },
-      {
-        id: 4,
-        name: '高清摄像头',
-        type: 'smart',
-        description: '分辨率在1080p以上的高清摄像头设备',
-        rule: '设备类型 = 摄像头 AND 分辨率 >= 1080p',
-        deviceCount: 15,
-        onlineCount: 15,
-        alertCount: 0,
-        isImportant: false
-      },
-      {
-        id: 5,
-        name: '温湿度传感器',
-        type: 'normal',
-        description: '所有温湿度传感器设备',
-        deviceCount: 6,
-        onlineCount: 6,
-        alertCount: 1,
-        isImportant: false
-      },
-      {
-        id: 6,
-        name: '报警设备',
-        type: 'dynamic',
-        description: '实时显示当前有报警的设备',
-        rule: '报警状态 = 活跃',
-        deviceCount: 3,
-        onlineCount: 3,
-        alertCount: 3,
-        isImportant: true
-      },
-      {
-        id: 7,
-        name: '移动摄像头',
-        type: 'normal',
-        description: '可移动/便携式摄像设备',
-        deviceCount: 4,
-        onlineCount: 3,
-        alertCount: 0,
-        isImportant: false
-      },
-      {
-        id: 8,
-        name: '生产线设备',
-        type: 'normal',
-        description: '生产线上的各类监控设备',
-        deviceCount: 8,
-        onlineCount: 8,
-        alertCount: 0,
-        isImportant: false
-      }
-    ]
+const getGroupList = async () => {
+  try {
+    loading.value = true
     
+    const response = await getAllDeviceGroups()
+    
+    if (response.code === 200) {
+      groups.value = response.data || []
+    } else {
+      ElMessage.error(response.message || '获取设备分组失败')
+      groups.value = []
+    }
+  } catch (error) {
+    console.error('获取设备分组失败', error)
+    ElMessage.error('获取设备分组失败：' + (error.message || '网络错误'))
+    groups.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 // 搜索
@@ -507,25 +440,35 @@ const handleViewDevices = (group) => {
 }
 
 // 删除分组
-const handleDeleteGroup = (group) => {
-  ElMessageBox.confirm(
-    `确认删除分组"${group.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDeleteGroup = async (group) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除分组"${group.name}"吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceGroup(group.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `分组"${group.name}"已删除`,
       })
-      groups.value = groups.value.filter(item => item.id !== group.id)
-    })
-    .catch(() => {})
+      getGroupList()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除设备分组失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 搜索设备
@@ -569,17 +512,30 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!groupFormRef.value) return
   
-  await groupFormRef.value.validate((valid) => {
+  await groupFormRef.value.validate(async (valid) => {
     if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getGroupList()
-      }, 500)
+      try {
+        let response
+        if (dialog.type === 'edit') {
+          response = await updateDeviceGroup(groupForm.id, groupForm)
+        } else {
+          response = await createDeviceGroup(groupForm)
+        }
+        
+        if (response.code === 200) {
+          ElMessage({
+            type: 'success',
+            message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+          })
+          dialog.visible = false
+          getGroupList()
+        } else {
+          ElMessage.error(response.message || '操作失败')
+        }
+      } catch (error) {
+        console.error('操作失败', error)
+        ElMessage.error('操作失败：' + (error.message || '网络错误'))
+      }
     }
   })
 }

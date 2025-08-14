@@ -43,7 +43,7 @@
             <el-button type="success" @click="$router.push(`/monitoring?deviceId=${deviceId}`)">
               <el-icon><VideoCamera /></el-icon>实时监控
             </el-button>
-            <el-button type="primary" @click="handleCheckConnection">
+            <el-button type="primary" @click="handleTestConnection">
               <el-icon><Connection /></el-icon>检测连接
             </el-button>
             <el-button type="warning" @click="$router.push(`/history?deviceId=${deviceId}`)">
@@ -293,13 +293,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getDeviceById, deleteDevice, testDeviceConnection } from '@/api/device'
 import { formatDateTime } from '@/utils/date'
-import {
-  Back, Edit, VideoCamera, Connection, Histogram, Delete,
-  Odometer, Key, Monitor, Refresh
+import { 
+  Back, Edit, Delete, Refresh, More, Setting, Cpu, VideoCamera, Connection,
+  Monitor, List, Location, Phone, Email, Calendar, Warning
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -416,65 +417,21 @@ const getTagType = (index) => {
   return types[index % types.length]
 }
 
-// Mock数据：获取设备详情
+// 获取设备详情
 const fetchDeviceDetail = async (deviceId) => {
   loading.value = true
   try {
-    // 模拟API调用
-    setTimeout(() => {
-      // Mock数据
-      Object.assign(device, {
-        id: deviceId,
-        name: '前门摄像头',
-        code: 'CAM-FRONT-001',
-        type: 'CAMERA',
-        model: 'HK-DS2CD2032-I',
-        description: '前门安全监控摄像头，24小时工作',
-        status: 1,
-        lastHeartbeatTime: new Date().toISOString(),
-        createdAt: '2023-05-10T10:00:00Z',
-        updatedAt: '2023-06-15T08:30:00Z',
-        group: '安防监控',
-        area: '北区 > 一层',
-        tags: ['重要', '入口', '室外'],
-        manufacturer: '海康威视',
-        manufacturerPhone: '400-000-1234',
-        manufacturerEmail: 'support@example.com',
-        serialNumber: 'SN20230510001',
-        manufactureDate: '2023-01-15',
-        warrantyPeriod: '3年',
-        ipAddress: '192.168.1.101',
-        port: 554,
-        macAddress: '00:11:22:33:44:55',
-        subnetMask: '255.255.255.0',
-        gateway: '192.168.1.1',
-        dns: '8.8.8.8',
-        connectionType: 'WIRED',
-        username: 'admin',
-        authType: 'DIGEST',
-        building: '主楼',
-        floor: '1楼',
-        room: '大厅',
-        location: '前门入口',
-        gpsCoordinates: '39.9042° N, 116.4074° E',
-        protocol: 'ONVIF',
-        protocolVersion: '2.0',
-        transportProtocol: 'RTSP',
-        apiPath: '/onvif/device_service',
-        videoPath: '/Streaming/Channels/1',
-        controlPath: '/PTZ/Control',
-        resolution: '1920x1080',
-        frameRate: '25fps',
-        bitRate: '4Mbps',
-        imageFormat: 'H.264',
-        ptzControl: true,
-        infrared: true
-      })
-      loading.value = false
-    }, 500)
+    const response = await getDeviceById(deviceId)
+    
+    if (response.code === 200) {
+      Object.assign(device, response.data)
+    } else {
+      ElMessage.error(response.message || '获取设备详情失败')
+    }
   } catch (error) {
     console.error('获取设备详情失败', error)
-    ElMessage.error('获取设备详情失败')
+    ElMessage.error('获取设备详情失败：' + (error.message || '网络错误'))
+  } finally {
     loading.value = false
   }
 }
@@ -594,41 +551,69 @@ const handleLogsCurrentChange = (page) => {
   refreshLogs()
 }
 
-// 检测连接
-const handleCheckConnection = () => {
-  ElMessage({
-    type: 'info',
-    message: `正在检测设备 ${device.name} 的连接状态...`
-  })
-  // 模拟检测过程
-  setTimeout(() => {
-    ElMessage({
-      type: 'success',
-      message: `设备 ${device.name} 连接正常`
-    })
-  }, 1500)
+// 删除设备
+const handleDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除设备 "${device.name}" 吗？删除后不可恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDevice(device.id)
+    
+    if (response.code === 200) {
+      ElMessage.success('设备删除成功')
+      router.push('/device')
+    } else {
+      ElMessage.error(response.message || '设备删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除设备失败', error)
+      ElMessage.error('删除设备失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
-// 删除设备
-const handleDelete = () => {
-  ElMessageBox.confirm(
-    `确定要删除设备"${device.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+// 检测连接
+const handleTestConnection = async () => {
+  try {
+    ElMessage({
+      type: 'info',
+      message: `正在检测设备 ${device.name} 的连接状态...`
+    })
+    
+    const response = await testDeviceConnection(device.id)
+    
+    if (response.code === 200) {
+      const result = response.data
+      if (result.connected) {
+        ElMessage({
+          type: 'success',
+          message: `设备 ${device.name} 连接正常`
+        })
+        // 更新设备状态
+        device.status = 1
+        device.lastHeartbeatTime = new Date().toISOString()
+      } else {
+        ElMessage({
+          type: 'error',
+          message: `设备 ${device.name} 连接失败：${result.message || '连接超时'}`
+        })
+        device.status = 2
+      }
+    } else {
+      ElMessage.error(response.message || '连接测试失败')
     }
-  ).then(() => {
-    // 模拟删除操作
-    setTimeout(() => {
-      ElMessage({
-        type: 'success',
-        message: `设备"${device.name}"已删除`
-      })
-      router.push('/device')
-    }, 500)
-  }).catch(() => {})
+  } catch (error) {
+    console.error('连接测试失败', error)
+    ElMessage.error('连接测试失败：' + (error.message || '网络错误'))
+  }
 }
 
 // 生命周期钩子

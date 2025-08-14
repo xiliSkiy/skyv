@@ -143,6 +143,10 @@
         <el-form-item label="协议名称" prop="name">
           <el-input v-model="protocolForm.name" placeholder="请输入协议名称" />
         </el-form-item>
+
+        <el-form-item label="协议编码" prop="code">
+          <el-input v-model="protocolForm.code" placeholder="请输入协议编码" />
+        </el-form-item>
         
         <el-form-item label="协议分类" prop="category">
           <el-select v-model="protocolForm.category" placeholder="请选择协议分类" style="width: 100%">
@@ -221,7 +225,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialog.visible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确认</el-button>
+          <el-button type="primary" @click="submitForm" :loading="submitting">确认</el-button>
         </div>
       </template>
     </el-dialog>
@@ -232,8 +236,16 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Plus, Edit, Delete, View, Search, List, Monitor, Timer,
+import { 
+  getDeviceProtocols, 
+  getAllEnabledProtocols,
+  createDeviceProtocol, 
+  updateDeviceProtocol, 
+  deleteDeviceProtocol,
+  validateProtocolCode,
+  validateProtocolName
+} from '@/api/device'
+import { Plus, Edit, Delete, View, Search, List, Monitor, Timer,
   Connection, Document, Setting, Link
 } from '@element-plus/icons-vue'
 
@@ -250,6 +262,7 @@ const sortOption = ref('default')
 
 // 加载状态
 const loading = ref(false)
+const submitting = ref(false)
 
 // 协议数据
 const protocols = ref([])
@@ -298,6 +311,7 @@ const protocolFormRef = ref(null)
 const protocolForm = reactive({
   id: null,
   name: '',
+  code: '',
   category: 'standard',
   version: '1.0',
   transport: 'tcp',
@@ -312,6 +326,26 @@ const protocolRules = {
   name: [
     { required: true, message: '请输入协议名称', trigger: 'blur' },
     { min: 1, max: 50, message: '长度在 1 到 50 个字符', trigger: 'blur' }
+  ],
+  code: [
+    { required: true, message: '请输入协议编码', trigger: 'blur' },
+    { min: 1, max: 50, message: '长度在 1 到 50 个字符', trigger: 'blur' },
+    {
+      validator: async (_rule, value, callback) => {
+        try {
+          if (!value) return callback()
+          const res = await validateProtocolCode(value, protocolForm.id)
+          if (res.code === 200 && res.data && res.data.isUnique === false) {
+            callback(new Error('协议编码已存在'))
+          } else {
+            callback()
+          }
+        } catch (e) {
+          callback(new Error('编码校验失败'))
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   category: [
     { required: true, message: '请选择协议分类', trigger: 'change' }
@@ -371,171 +405,42 @@ const getDeviceTypeLabel = (type) => {
 }
 
 // 获取协议列表
-const getProtocolList = () => {
-  loading.value = true
-  // 模拟API调用
-  setTimeout(() => {
-    // Mock数据
-    protocols.value = [
-      {
-        id: 1,
-        name: 'ONVIF',
+const getProtocolList = async () => {
+  try {
+    loading.value = true
+    
+    const response = await getDeviceProtocols({ page: 1, limit: 100 })
+    
+    if (response.code === 200) {
+      const pageData = response.data || {}
+      const content = Array.isArray(pageData.content) ? pageData.content : (Array.isArray(pageData) ? pageData : [])
+      protocols.value = content.map(dto => ({
+        id: dto.id,
+        name: dto.name,
+        description: dto.description,
+        version: dto.version,
+        port: dto.port,
+        // 将后端 usageCount 映射为前端展示的“关联设备数”
+        deviceCount: dto.usageCount || 0,
+        // 使用后端创建时间
+        createdTime: dto.createdAt,
+        // 以下字段为前端展示所需的占位/默认值（后端未提供）
         category: 'standard',
-        version: '21.06',
-        transport: 'http',
-        port: 80,
+        transport: 'tcp',
         color: '#409EFF',
-        description: 'ONVIF是一个全球性的标准接口，用于IP网络视频设备之间的互操作性',
-        deviceCount: 42,
-        createdTime: '2023-05-10',
-        supportedTypes: ['camera', 'nvr']
-      },
-      {
-        id: 2,
-        name: 'RTSP',
-        category: 'standard',
-        version: '2.0',
-        transport: 'tcp',
-        port: 554,
-        color: '#67C23A',
-        description: '实时流协议(RTSP)是用于控制流媒体服务器的网络协议',
-        deviceCount: 56,
-        createdTime: '2023-05-12',
-        supportedTypes: ['camera', 'nvr']
-      },
-      {
-        id: 3,
-        name: 'GB/T 28181',
-        category: 'standard',
-        version: '2016',
-        transport: 'tcp',
-        port: 5060,
-        color: '#E6A23C',
-        description: '中国安全防范视频监控联网系统信息传输、交换、控制技术要求',
-        deviceCount: 28,
-        createdTime: '2023-05-15',
-        supportedTypes: ['camera', 'nvr', 'alarm']
-      },
-      {
-        id: 4,
-        name: 'Hikvision SDK',
-        category: 'proprietary',
-        version: '6.1.6.4',
-        transport: 'tcp',
-        port: 8000,
-        color: '#F56C6C',
-        description: '海康威视设备网络SDK，用于访问和控制海康威视设备',
-        deviceCount: 35,
-        createdTime: '2023-05-20',
-        supportedTypes: ['camera', 'nvr', 'access']
-      },
-      {
-        id: 5,
-        name: 'Dahua SDK',
-        category: 'proprietary',
-        version: '3.2',
-        transport: 'tcp',
-        port: 37777,
-        color: '#909399',
-        description: '大华设备网络SDK，用于访问和控制大华设备',
-        deviceCount: 22,
-        createdTime: '2023-05-25',
-        supportedTypes: ['camera', 'nvr', 'access']
-      },
-      {
-        id: 6,
-        name: 'Modbus',
-        category: 'standard',
-        version: 'RTU/TCP',
-        transport: 'tcp',
-        port: 502,
-        color: '#9C27B0',
-        description: '一种广泛应用于工业自动化系统的通信协议',
-        deviceCount: 18,
-        createdTime: '2023-06-01',
-        supportedTypes: ['sensor', 'alarm']
-      },
-      {
-        id: 7,
-        name: 'OPC UA',
-        category: 'standard',
-        version: '1.04',
-        transport: 'tcp',
-        port: 4840,
-        color: '#3F51B5',
-        description: '用于工业自动化的机器对机器通信协议',
-        deviceCount: 12,
-        createdTime: '2023-06-05',
-        supportedTypes: ['sensor', 'alarm']
-      },
-      {
-        id: 8,
-        name: 'MQTT',
-        category: 'standard',
-        version: '5.0',
-        transport: 'tcp',
-        port: 1883,
-        color: '#2196F3',
-        description: '轻量级的发布/订阅消息传输协议，适用于IoT设备',
-        deviceCount: 31,
-        createdTime: '2023-06-10',
-        supportedTypes: ['sensor', 'alarm', 'other']
-      },
-      {
-        id: 9,
-        name: '自定义协议A',
-        category: 'custom',
-        version: '1.0',
-        transport: 'tcp',
-        port: 9000,
-        color: '#00BCD4',
-        description: '用于特定项目的自定义协议',
-        deviceCount: 5,
-        createdTime: '2023-06-15',
-        supportedTypes: ['camera', 'sensor']
-      },
-      {
-        id: 10,
-        name: 'Uniview SDK',
-        category: 'proprietary',
-        version: '2.3',
-        transport: 'tcp',
-        port: 9988,
-        color: '#FF9800',
-        description: '宇视设备网络SDK，用于访问和控制宇视设备',
-        deviceCount: 15,
-        createdTime: '2023-06-20',
-        supportedTypes: ['camera', 'nvr']
-      },
-      {
-        id: 11,
-        name: 'HTTP API',
-        category: 'standard',
-        version: 'RESTful',
-        transport: 'http',
-        port: 80,
-        color: '#4CAF50',
-        description: '基于HTTP的RESTful API接口',
-        deviceCount: 24,
-        createdTime: '2023-06-25',
-        supportedTypes: ['camera', 'access', 'sensor', 'alarm', 'other']
-      },
-      {
-        id: 12,
-        name: 'WebSocket',
-        category: 'standard',
-        version: '13',
-        transport: 'tcp',
-        port: 443,
-        color: '#795548',
-        description: '提供全双工通信通道的协议',
-        deviceCount: 9,
-        createdTime: '2023-07-01',
-        supportedTypes: ['camera', 'sensor', 'alarm']
-      }
-    ]
+        supportedTypes: []
+      }))
+    } else {
+      ElMessage.error(response.message || '获取设备协议失败')
+      protocols.value = []
+    }
+  } catch (error) {
+    console.error('获取设备协议失败', error)
+    ElMessage.error('获取设备协议失败：' + (error.message || '网络错误'))
+    protocols.value = []
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 // 搜索协议
@@ -569,6 +474,7 @@ const handleEditProtocol = (protocol) => {
   Object.assign(protocolForm, {
     id: protocol.id,
     name: protocol.name,
+    code: protocol.code,
     category: protocol.category,
     version: protocol.version,
     transport: protocol.transport,
@@ -594,25 +500,35 @@ const handleViewDevices = (protocol) => {
 }
 
 // 删除协议
-const handleDeleteProtocol = (protocol) => {
-  ElMessageBox.confirm(
-    `确认删除协议"${protocol.name}"吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 模拟删除
+const handleDeleteProtocol = async (protocol) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除协议"${protocol.name}"吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    const response = await deleteDeviceProtocol(protocol.id)
+    
+    if (response.code === 200) {
       ElMessage({
         type: 'success',
         message: `协议"${protocol.name}"已删除`,
       })
-      protocols.value = protocols.value.filter(item => item.id !== protocol.id)
-    })
-    .catch(() => {})
+      getProtocolList()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除协议失败', error)
+      ElMessage.error('删除失败：' + (error.message || '网络错误'))
+    }
+  }
 }
 
 // 重置表单
@@ -624,6 +540,7 @@ const resetForm = () => {
   Object.assign(protocolForm, {
     id: null,
     name: '',
+    code: '',
     category: 'standard',
     version: '1.0',
     transport: 'tcp',
@@ -638,19 +555,34 @@ const resetForm = () => {
 const submitForm = async () => {
   if (!protocolFormRef.value) return
   
-  await protocolFormRef.value.validate((valid) => {
-    if (valid) {
-      // 模拟提交
-      setTimeout(() => {
-        ElMessage({
-          type: 'success',
-          message: dialog.type === 'edit' ? '修改成功' : '添加成功',
-        })
-        dialog.visible = false
-        getProtocolList()
-      }, 500)
+  try {
+    await protocolFormRef.value.validate()
+    
+    submitting.value = true
+    
+    let response
+    if (dialog.type === 'edit') {
+      response = await updateDeviceProtocol(protocolForm.id, protocolForm)
+    } else {
+      response = await createDeviceProtocol(protocolForm)
     }
-  })
+    
+    if (response.code === 200) {
+      ElMessage({
+        type: 'success',
+        message: dialog.type === 'edit' ? '修改成功' : '添加成功',
+      })
+      dialog.visible = false
+      getProtocolList()
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('操作失败', error)
+    ElMessage.error('操作失败：' + (error.message || '网络错误'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 初始化

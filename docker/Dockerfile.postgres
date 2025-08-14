@@ -1,0 +1,33 @@
+# SkyEye PostgreSQL Docker Image
+FROM postgres:15-alpine
+
+# 设置环境变量
+ENV POSTGRES_DB=skyeye
+ENV POSTGRES_USER=skyeye_app
+ENV POSTGRES_PASSWORD=skyeye_app_2024
+ENV PGDATA=/var/lib/postgresql/data/pgdata
+
+# 安装必要的扩展
+RUN apk add --no-cache \
+    postgresql-contrib \
+    postgresql-dev
+
+# 创建数据目录
+RUN mkdir -p /var/lib/postgresql/data/pgdata && \
+    chown -R postgres:postgres /var/lib/postgresql/data
+
+# 复制初始化脚本
+COPY init-scripts/ /docker-entrypoint-initdb.d/
+
+# 复制配置文件
+COPY postgresql.conf /etc/postgresql/postgresql.conf
+COPY pg_hba.conf /etc/postgresql/pg_hba.conf
+
+# 设置权限
+RUN chmod +x /docker-entrypoint-initdb.d/*.sh
+
+# 暴露端口
+EXPOSE 5432
+
+# 设置启动命令
+CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"] 

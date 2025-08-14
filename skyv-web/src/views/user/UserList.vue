@@ -843,8 +843,8 @@ export default {
           ...queryParams,
           page: queryParams.page - 1
         })
-        userList.value = res.data
-        total.value = res.meta?.total || 0
+        userList.value = res.data.list || []
+        total.value = res.data.total || 0
       } catch (error) {
         console.error('获取用户列表失败', error)
         ElMessage.error('获取用户列表失败')

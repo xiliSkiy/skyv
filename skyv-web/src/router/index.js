@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
-import { getToken } from '@/utils/auth'
+import { getAccessToken } from '@/utils/auth'
 
 // 路由配置
 const routes = [
@@ -316,7 +316,7 @@ router.beforeEach((to, from, next) => {
   
   // 判断是否需要登录权限
   if (to.meta.requiresAuth !== false) {
-    const token = getToken()
+    const token = getAccessToken()
     if (token) {
       next()
     } else {
