@@ -86,6 +86,14 @@ public class DataInitializer implements CommandLineRunner {
             new PermissionData("alert:handle", "处理报警", "报警处理权限", "alert", "handle", "API"),
             new PermissionData("alert:config", "配置报警", "报警配置权限", "alert", "config", "API"),
             
+            // 任务管理权限
+            new PermissionData("task:view", "查看任务", "任务查看权限", "task", "view", "API"),
+            new PermissionData("task:create", "创建任务", "任务创建权限", "task", "create", "API"),
+            new PermissionData("task:update", "更新任务", "任务更新权限", "task", "update", "API"),
+            new PermissionData("task:delete", "删除任务", "任务删除权限", "task", "delete", "API"),
+            new PermissionData("task:execute", "执行任务", "任务执行权限", "task", "execute", "API"),
+            new PermissionData("task:manage", "管理任务", "任务管理权限", "task", "manage", "API"),
+            
             // 系统管理权限
             new PermissionData("system:view", "查看系统", "系统查看权限", "system", "view", "API"),
             new PermissionData("system:config", "系统配置", "系统配置权限", "system", "config", "API"),
@@ -138,7 +146,7 @@ public class DataInitializer implements CommandLineRunner {
         List<Permission> userPermissions = entityManager
             .createQuery("SELECT p FROM Permission p WHERE p.code IN (:codes)", Permission.class)
             .setParameter("codes", Arrays.asList(
-                "device:view", "monitoring:view", "alert:view"
+                "device:view", "monitoring:view", "alert:view", "task:view"
             ))
             .getResultList();
         userRole.setPermissions(Set.copyOf(userPermissions));
@@ -147,7 +155,7 @@ public class DataInitializer implements CommandLineRunner {
         Role deviceManagerRole = findOrCreateRole("DEVICE_MANAGER", "设备管理员", "设备管理员角色，负责设备管理");
         List<Permission> devicePermissions = entityManager
             .createQuery("SELECT p FROM Permission p WHERE p.resource IN (:resources)", Permission.class)
-            .setParameter("resources", Arrays.asList("device", "monitoring", "alert"))
+            .setParameter("resources", Arrays.asList("device", "monitoring", "alert", "task"))
             .getResultList();
         deviceManagerRole.setPermissions(Set.copyOf(devicePermissions));
         

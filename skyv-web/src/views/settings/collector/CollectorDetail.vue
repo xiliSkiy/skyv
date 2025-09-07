@@ -311,10 +311,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   getCollectorById, 
-  getCollectorMetrics, 
-  getCollectorLogs, 
-  getAssignedDevices,
-  removeDeviceFromCollector
+  getCollectorMetrics
 } from '@/api/collector'
 import DeviceSelector from './components/DeviceSelector.vue'
 

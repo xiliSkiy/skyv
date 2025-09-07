@@ -383,7 +383,7 @@ import {
   getTemplateApplicationHistory
 } from '@/api/metrics'
 import { getAllMetrics } from '@/api/metrics'
-import { getAllDevices } from '@/api/devices'
+import { getAllDevices } from '@/api/device'
 import { formatDateTime as formatDateUtil } from '@/utils/date'
 
 export default {

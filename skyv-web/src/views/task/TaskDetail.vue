@@ -307,7 +307,7 @@ const taskInfo = ref({
   taskName: '',
   taskType: '',
   description: '',
-  priority: 'medium',
+  priority: 5,
   tags: [],
   owner: '',
   department: '',
@@ -329,6 +329,50 @@ const fetchTaskDetail = async () => {
     const res = await getTaskDetail(taskId)
     // 确保数据完整性
     const data = res.data || {}
+    
+    // 处理字段映射和缺失字段
+    // 1. 任务名称（后端返回name，前端期望taskName）
+    data.taskName = data.taskName || data.name
+    
+    // 2. 任务类型（从scheduleType推断或使用默认值）
+    data.taskType = data.taskType || data.scheduleType || 'interval'
+    
+    // 3. 创建时间（使用createdAt字段）
+    data.createTime = data.createTime || data.createdAt
+    
+    // 4. 开始时间（从scheduleConfig中提取）
+    if (data.scheduleConfig && data.scheduleConfig.startTime) {
+      data.startTime = data.scheduleConfig.startTime
+    } else {
+      data.startTime = data.startTime || null
+    }
+    
+    // 5. 结束时间（如果后端没有则使用默认值）
+    data.endTime = data.endTime || data.expireTime || null
+    
+    // 6. 负责人（如果后端没有则使用默认值）
+    data.owner = data.owner || '系统管理员'
+    
+    // 7. 其他可能缺失的字段
+    data.collectorType = data.collectorType || (data.collectorId ? 'custom' : 'default')
+    data.effectiveTime = data.effectiveTime || null
+    data.expireTime = data.expireTime || null
+    
+    // 8. 调度配置处理
+    if (data.scheduleConfig) {
+      data.schedule = data.scheduleConfig
+    } else {
+      data.schedule = {}
+    }
+    
+    console.log('处理后的任务数据:', {
+      taskName: data.taskName,
+      taskType: data.taskType,
+      createTime: data.createTime,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      owner: data.owner
+    })
     
     // 处理可能缺失的数组字段
     data.tags = data.tags || []
@@ -444,12 +488,21 @@ const formatDate = (date) => {
 // 获取调度描述
 const getScheduleDescription = () => {
   const schedule = taskInfo.value.schedule || {};
+  const taskType = taskInfo.value.scheduleType || taskInfo.value.taskType;
   
   if (!schedule || Object.keys(schedule).length === 0) {
     return '未配置调度信息';
   }
   
-  switch (schedule.scheduleType) {
+  // 根据任务的scheduleType来判断调度类型
+  switch (taskType) {
+    case 'once':
+      return `单次执行，开始时间：${schedule.startTime || '未设置'}`;
+    case 'interval':
+      if (!schedule.intervalValue) return '间隔执行，未设置间隔';
+      return `每 ${schedule.intervalValue} ${getIntervalUnitLabel(schedule.intervalUnit)} 执行一次，开始时间：${schedule.startTime || '未设置'}`;
+    case 'cron':
+      return `Cron调度：${schedule.cronExpression || '未设置表达式'}`;
     case 'realtime':
       return '实时执行，持续采集数据';
     case 'scheduled':
@@ -473,7 +526,7 @@ const getScheduleDescription = () => {
       if (!schedule.triggerType) return '触发执行，未设置触发条件';
       return `触发执行，触发条件：${getTriggerTypeLabel(schedule.triggerType)} - ${getTriggerEventLabel(schedule.triggerEvent)}`;
     default:
-      return '未知调度类型';
+      return `调度类型：${taskType || '未知'}`;
   }
 }
 
@@ -541,7 +594,10 @@ const getTaskTypeTag = (type) => {
     realtime: 'info',
     scheduled: 'primary',
     periodic: 'success',
-    triggered: 'warning'
+    triggered: 'warning',
+    interval: 'success',
+    once: 'primary',
+    cron: 'warning'
   }
   return map[type] || ''
 }
@@ -552,7 +608,10 @@ const getTaskTypeLabel = (type) => {
     realtime: '实时采集',
     scheduled: '定时采集',
     periodic: '周期采集',
-    triggered: '触发式采集'
+    triggered: '触发式采集',
+    interval: '间隔采集',
+    once: '单次采集',
+    cron: 'Cron调度'
   }
   return map[type] || type
 }

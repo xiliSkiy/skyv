@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>输入框测试</title>
+</head>
+<body>
+    <h3>测试执行间隔输入框问题</h3>
+    
+    <p><strong>问题描述：</strong>选择周期执行时，执行间隔框无法输入数据</p>
+    
+    <p><strong>已修复的问题：</strong></p>
+    <ul>
+        <li>将 el-input-number 替换为 el-input type="number"</li>
+        <li>添加了输入验证函数 handleIntervalValueInput</li>
+        <li>修复了调度类型切换时的数据重置逻辑</li>
+        <li>添加了watch监听器用于调试</li>
+        <li>添加了输入范围限制（1-9999）</li>
+    </ul>
+    
+    <p><strong>测试步骤：</strong></p>
+    <ol>
+        <li>打开任务创建页面</li>
+        <li>完成基本信息和设备选择</li>
+        <li>在调度设置页面选择"周期执行"</li>
+        <li>尝试在"执行间隔"输入框中输入数字</li>
+        <li>检查浏览器控制台是否有 "intervalValue changed" 日志输出</li>
+    </ol>
+    
+    <p><strong>预期结果：</strong></p>
+    <ul>
+        <li>输入框可以正常输入数字</li>
+        <li>输入值在1-9999范围内</li>
+        <li>实时显示"任务将每隔 X 分钟执行一次"</li>
+    </ul>
+</body>
+</html>

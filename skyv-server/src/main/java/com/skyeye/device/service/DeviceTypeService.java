@@ -3,6 +3,7 @@ package com.skyeye.device.service;
 import com.skyeye.device.dto.DeviceTypeDto;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 设备类型服务接口
@@ -91,6 +92,21 @@ public interface DeviceTypeService {
      * @return 统计信息
      */
     Object getDeviceTypeStats();
+
+    /**
+     * 调试设备类型统计问题
+     * 用于排查设备数量不匹配的问题
+     *
+     * @param deviceTypeId 设备类型ID
+     * @return 调试信息
+     */
+    Map<String, Object> debugDeviceTypeCount(Long deviceTypeId);
+
+    /**
+     * 初始化所有设备类型的统计数据
+     * 用于修复数据不一致问题
+     */
+    void initializeAllDeviceTypeCounts();
 
     /**
      * 根据父类型ID获取子类型

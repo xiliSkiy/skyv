@@ -142,17 +142,6 @@ export function validateDeviceIp(ipAddress, id = null) {
 // ==================== 设备类型管理 ====================
 
 /**
- * 获取设备类型树形列表
- * @returns {Promise}
- */
-export function getDeviceTypeTree() {
-  return request({
-    url: '/api/device-types/tree',
-    method: 'get'
-  })
-}
-
-/**
  * 获取设备类型列表
  * @param {Object} params 查询参数
  * @returns {Promise}
@@ -228,6 +217,112 @@ export function getDeviceGroups(params) {
     url: '/api/devices/groups',
     method: 'get',
     params
+  })
+}
+
+/**
+ * 根据分组ID获取设备列表
+ * @param {Number} groupId 分组ID
+ * @returns {Promise}
+ */
+export function getDevicesByGroupId(groupId) {
+  return request({
+    url: `/api/devices/group/${groupId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 根据设备类型获取设备列表
+ * @param {Number} typeId 设备类型ID
+ * @returns {Promise}
+ */
+export function getDevicesByType(typeId) {
+  return request({
+    url: `/api/devices/type/${typeId}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 根据设备类型参数获取设备列表
+ * @param {Object} params 类型参数
+ * @returns {Promise}
+ */
+export function getDevicesByTypeParam(params) {
+  return request({
+    url: '/api/devices/by-type',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取设备类型树形结构
+ * @param {String} name 设备类型名称（可选）
+ * @returns {Promise}
+ */
+export function getDeviceTypeTree(name) {
+  return request({
+    url: '/api/device-types/tree',
+    method: 'get',
+    params: { name }
+  })
+}
+
+/**
+ * 获取所有设备类型
+ * @returns {Promise}
+ */
+export function getAllDeviceTypes() {
+  return request({
+    url: '/api/device-types',
+    method: 'get'
+  })
+}
+
+/**
+ * 调试设备类型统计问题
+ * @param {Number} deviceTypeId 设备类型ID
+ * @returns {Promise}
+ */
+export function debugDeviceTypeCount(deviceTypeId) {
+  return request({
+    url: `/api/device-types/debug/${deviceTypeId}/count`,
+    method: 'get'
+  })
+}
+
+/**
+ * 初始化所有设备类型的统计数据
+ * @returns {Promise}
+ */
+export function initializeDeviceTypeCounts() {
+  return request({
+    url: '/api/device-types/initialize-counts',
+    method: 'post'
+  })
+}
+
+/**
+ * 获取设备区域树形结构
+ * @returns {Promise}
+ */
+export function getDeviceAreaTree() {
+  return request({
+    url: '/api/device-areas/tree',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取设备分组统计信息
+ * @returns {Promise}
+ */
+export function getDeviceGroupStats() {
+  return request({
+    url: '/api/device-groups/stats',
+    method: 'get'
   })
 }
 
@@ -309,17 +404,6 @@ export function getDeviceAreas(params) {
     url: '/api/device-areas',
     method: 'get',
     params
-  })
-}
-
-/**
- * 获取设备区域树形结构
- * @returns {Promise}
- */
-export function getDeviceAreaTree() {
-  return request({
-    url: '/api/device-areas/tree',
-    method: 'get'
   })
 }
 

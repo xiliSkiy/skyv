@@ -69,9 +69,9 @@
             <el-form-item label="优先级">
               <el-select v-model="queryParams.priority" placeholder="全部优先级" clearable style="width: 100%">
                 <el-option label="全部优先级" value="" />
-                <el-option label="高" value="high" />
-                <el-option label="中" value="medium" />
-                <el-option label="低" value="low" />
+                <el-option label="高" :value="1" />
+                <el-option label="中" :value="5" />
+                <el-option label="低" :value="9" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -205,8 +205,8 @@
                         <div class="task-name">{{ task.taskName || task.name || '未命名任务' }}</div>
                         <div class="task-meta">
                           <span class="task-id">ID: {{ task.id }}</span>
-                          <el-tag size="small" :type="getTaskTypeTag(task.taskType || task.type)" effect="plain" class="task-type-tag">
-                            {{ getTaskTypeLabel(task.taskType || task.type) }}
+                          <el-tag size="small" :type="getTaskTypeTag(task.taskType || task.type || task.scheduleType)" effect="plain" class="task-type-tag">
+                            {{ getTaskTypeLabel(task.taskType || task.type || task.scheduleType) }}
                           </el-tag>
                         </div>
                       </div>
@@ -228,12 +228,12 @@
                   <div class="table-cell priority-cell">
                     <div class="task-priority-section">
                       <div class="priority-indicator">
-                        <span class="task-priority-dot" :class="'priority-' + (task.priority || task.priorityLevel || 'medium')"></span>
-                        <span class="priority-text">{{ getPriorityLabel(task.priority || task.priorityLevel || 'medium') }}</span>
+                        <span class="task-priority-dot" :class="'priority-' + getPriorityClass(task.priority || task.priorityLevel || 5)"></span>
+                        <span class="priority-text">{{ getPriorityLabel(task.priority || task.priorityLevel || 5) }}</span>
                       </div>
                       <div class="device-count">
                         <el-icon><VideoCamera /></el-icon>
-                        <span>{{ task.deviceCount || (task.devices ? task.devices.length : 0) }}台设备</span>
+                        <span>{{ task.deviceCount || (task.devices ? task.devices.length : (task.targetDevices ? task.targetDevices.length : 0)) }}台设备</span>
                       </div>
                     </div>
                   </div>
@@ -248,14 +248,14 @@
                             <el-dropdown-item command="view">
                               <el-icon><View /></el-icon> 查看详情
                             </el-dropdown-item>
-                            <el-dropdown-item v-if="task.status === 'paused'" command="start">
-                              <el-icon><VideoPlay /></el-icon> 继续
+                            <el-dropdown-item v-if="task.status === 0" command="start">
+                              <el-icon><VideoPlay /></el-icon> 启用
                             </el-dropdown-item>
-                            <el-dropdown-item v-if="task.status === 'running'" command="pause">
+                            <el-dropdown-item v-if="task.status === 1" command="pause">
                               <el-icon><VideoPause /></el-icon> 暂停
                             </el-dropdown-item>
-                            <el-dropdown-item v-if="task.status === 'running'" command="stop">
-                              <el-icon><CircleClose /></el-icon> 停止
+                            <el-dropdown-item v-if="task.status === 1" command="stop">
+                              <el-icon><CircleClose /></el-icon> 禁用
                             </el-dropdown-item>
                             <el-dropdown-item command="edit">
                               <el-icon><Edit /></el-icon> 编辑
@@ -272,7 +272,7 @@
               </div>
               
               <!-- 进度条 -->
-              <div v-if="task.status === 'running'" class="progress-container">
+              <div v-if="task.status === 1 && task.isEnabled" class="progress-container">
                 <div class="progress">
                   <div 
                     class="progress-bar" 
@@ -321,7 +321,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Filter, Search, Refresh, Download, List, Clock, VideoCamera, 
   VideoPlay, VideoPause, CircleClose, Delete, View, Edit, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
-import { getTaskList, getTaskStats, startTask, pauseTask, stopTask, deleteTask, batchTaskAction } from '@/api/task'
+import { getTaskList, getTaskOverviewStatistics, enableTask, pauseTask, disableTask, deleteTask, batchTaskAction } from '@/api/task'
 
 const router = useRouter()
 
@@ -417,12 +417,42 @@ const fetchTaskList = async () => {
 // 获取任务统计数据
 const fetchTaskStats = async () => {
   try {
-    const res = await getTaskStats()
+    const res = await getTaskOverviewStatistics()
     if (res.data) {
-      taskStats.value[0].count = res.data.total || 0
-      taskStats.value[1].count = res.data.running || 0
-      taskStats.value[2].count = res.data.scheduled || 0
-      taskStats.value[3].count = res.data.failed || 0
+      // 处理后端返回的数据结构
+      const { statusStatistics, scheduleStatistics, priorityStatistics } = res.data
+      
+      // 计算总任务数（所有状态的任务数量之和）
+      let totalTasks = 0
+      if (statusStatistics) {
+        totalTasks = Object.values(statusStatistics).reduce((sum, count) => sum + count, 0)
+      }
+      
+      // 运行中任务（状态为1的任务）
+      const runningTasks = statusStatistics ? (statusStatistics['1'] || 0) : 0
+      
+      // 已调度任务（所有调度类型的任务数量之和）
+      let scheduledTasks = 0
+      if (scheduleStatistics) {
+        scheduledTasks = Object.values(scheduleStatistics).reduce((sum, count) => sum + count, 0)
+      }
+      
+      // 异常任务（状态为-1或3的任务）
+      const errorTasks = statusStatistics ? ((statusStatistics['-1'] || 0) + (statusStatistics['3'] || 0)) : 0
+      
+      // 更新统计数据
+      taskStats.value[0].count = totalTasks
+      taskStats.value[1].count = runningTasks
+      taskStats.value[2].count = scheduledTasks
+      taskStats.value[3].count = errorTasks
+      
+      console.log('任务统计数据更新:', {
+        totalTasks,
+        runningTasks,
+        scheduledTasks,
+        errorTasks,
+        rawData: res.data
+      })
     }
   } catch (error) {
     console.error('获取任务统计数据失败', error)
@@ -512,16 +542,16 @@ const handleBatchCommand = async (command) => {
 
   switch (command) {
     case 'start':
-      confirmMessage = '确认要启动选中的任务吗？'
-      successMessage = '批量启动任务成功'
+      confirmMessage = '确认要启用选中的任务吗？'
+      successMessage = '批量启用任务成功'
       break
     case 'pause':
       confirmMessage = '确认要暂停选中的任务吗？'
       successMessage = '批量暂停任务成功'
       break
     case 'stop':
-      confirmMessage = '确认要停止选中的任务吗？'
-      successMessage = '批量停止任务成功'
+      confirmMessage = '确认要禁用选中的任务吗？'
+      successMessage = '批量禁用任务成功'
       break
     case 'delete':
       confirmMessage = '确认要删除选中的任务吗？此操作不可恢复！'
@@ -550,16 +580,16 @@ const handleBatchCommand = async (command) => {
   }
 }
 
-// 启动任务
+// 启用任务
 const handleStartTask = async (id) => {
   try {
-    await startTask(id)
-    ElMessage.success('启动任务成功')
+    await enableTask(id)
+    ElMessage.success('启用任务成功')
     fetchTaskList()
     fetchTaskStats()
   } catch (error) {
-    console.error('启动任务失败', error)
-    ElMessage.error('启动任务失败')
+    console.error('启用任务失败', error)
+    ElMessage.error('启用任务失败')
   }
 }
 
@@ -576,16 +606,16 @@ const handlePauseTask = async (id) => {
   }
 }
 
-// 停止任务
+// 禁用任务
 const handleStopTask = async (id) => {
   try {
-    await stopTask(id)
-    ElMessage.success('停止任务成功')
+    await disableTask(id)
+    ElMessage.success('禁用任务成功')
     fetchTaskList()
     fetchTaskStats()
   } catch (error) {
-    console.error('停止任务失败', error)
-    ElMessage.error('停止任务失败')
+    console.error('禁用任务失败', error)
+    ElMessage.error('禁用任务失败')
   }
 }
 
@@ -661,7 +691,11 @@ const getTaskTypeTag = (type) => {
     realtime: 'info',
     scheduled: 'primary',
     periodic: 'success',
-    triggered: 'warning'
+    triggered: 'warning',
+    interval: 'success',    // 间隔执行
+    once: 'info',          // 一次性执行
+    cron: 'primary',       // Cron表达式
+    event: 'warning'       // 事件触发
   }
   return map[type] || ''
 }
@@ -673,7 +707,11 @@ const getTaskTypeLabel = (type) => {
     realtime: '实时采集',
     scheduled: '定时采集',
     periodic: '周期采集',
-    triggered: '触发式采集'
+    triggered: '触发式采集',
+    interval: '周期执行',      // 与编辑页面保持一致
+    once: '一次性执行',        // 一次性执行
+    cron: 'Cron表达式',       // 与编辑页面保持一致
+    event: '事件触发'       // 事件触发
   }
   return map[type] || type
 }
@@ -706,13 +744,45 @@ const getStatusLabel = (status) => {
 
 // 获取优先级标签
 const getPriorityLabel = (priority) => {
-  if (!priority) return '中优先级';
-  const map = {
-    high: '高优先级',
-    medium: '中优先级',
-    low: '低优先级'
+  if (priority === null || priority === undefined) return '中优先级';
+  
+  // 如果是字符串类型（向后兼容）
+  if (typeof priority === 'string') {
+    const map = {
+      high: '高优先级',
+      medium: '中优先级',
+      low: '低优先级'
+    }
+    return map[priority] || priority
   }
-  return map[priority] || priority
+  
+  // 如果是数字类型
+  if (typeof priority === 'number') {
+    if (priority <= 3) return '高优先级'
+    if (priority <= 7) return '中优先级'
+    return '低优先级'
+  }
+  
+  return '中优先级'
+}
+
+// 获取优先级CSS类名
+const getPriorityClass = (priority) => {
+  if (priority === null || priority === undefined) return 'medium';
+  
+  // 如果是字符串类型（向后兼容）
+  if (typeof priority === 'string') {
+    return priority
+  }
+  
+  // 如果是数字类型
+  if (typeof priority === 'number') {
+    if (priority <= 3) return 'high'
+    if (priority <= 7) return 'medium'
+    return 'low'
+  }
+  
+  return 'medium'
 }
 
 // 获取任务进度

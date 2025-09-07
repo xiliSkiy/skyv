@@ -1,10 +1,13 @@
 package com.skyeye.security.config;
 
 import com.skyeye.security.jwt.JwtAuthenticationFilter;
+import com.skyeye.security.service.CustomPermissionEvaluator;
 import com.skyeye.security.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -40,6 +43,7 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomPermissionEvaluator permissionEvaluator;
 
     /**
      * 密码编码器
@@ -66,6 +70,17 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    /**
+     * 方法安全表达式处理器
+     * 配置权限评估器
+     */
+    @Bean
+    public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
+        expressionHandler.setPermissionEvaluator(permissionEvaluator);
+        return expressionHandler;
     }
 
     /**
@@ -125,6 +140,9 @@ public class SecurityConfig {
                 // 设备管理接口
                 .requestMatchers("/api/device/**").hasAnyRole("ADMIN", "DEVICE_MANAGER", "USER")
                 .requestMatchers("/api/devices/**").hasAnyRole("ADMIN", "DEVICE_MANAGER", "USER")
+                
+                // 采集器和任务管理接口
+                .requestMatchers("/api/collector/**").hasAnyRole("ADMIN", "DEVICE_MANAGER", "USER")
                 
                 // 其他所有请求都需要认证
                 .anyRequest().authenticated()

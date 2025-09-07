@@ -597,7 +597,7 @@ import {
   Bell, MagicStick, Monitor, Operation, Upload, Download, Plus,
   Lock, Histogram, Warning, Setting, Search, Edit, Delete,
   View, Connection, CircleCheck, CircleClose, InfoFilled,
-  ArrowUp, ArrowDown, Calendar, Clock, User, Cpu, Grid, List, Document, CopyDocument, Refresh, Save
+  ArrowUp, ArrowDown, Calendar, Clock, User, Cpu, Grid, List, Document, CopyDocument, Refresh
 } from '@element-plus/icons-vue'
 
 // 响应式数据

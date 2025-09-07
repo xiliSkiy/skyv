@@ -185,18 +185,9 @@ const routes = [
         component: () => import('@/views/task/TaskCreateDevice.vue'),
         meta: { title: '创建任务-设备选择', requiresAuth: true, activeMenu: '/task' }
       },
-      {
-        path: 'task/create/metrics',
-        name: 'TaskCreateMetrics',
-        component: () => import('@/views/task/TaskCreateMetrics.vue'),
-        meta: { title: '创建任务-指标配置', requiresAuth: true, activeMenu: '/task' }
-      },
-      {
-        path: 'task/create/schedule',
-        name: 'TaskCreateSchedule',
-        component: () => import('@/views/task/TaskCreateSchedule.vue'),
-        meta: { title: '创建任务-调度设置', requiresAuth: true, activeMenu: '/task' }
-      },
+
+
+
       {
         path: 'task/detail/:id',
         name: 'TaskDetail',

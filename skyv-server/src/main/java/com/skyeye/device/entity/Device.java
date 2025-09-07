@@ -34,6 +34,12 @@ public class Device extends BaseEntity {
     private Long deviceTypeId;
 
     /**
+     * 设备类型对象（临时字段，不持久化）
+     */
+    @Transient
+    private DeviceType deviceType;
+
+    /**
      * 区域ID
      */
     @Column(name = "area_id")
@@ -60,7 +66,7 @@ public class Device extends BaseEntity {
     /**
      * IP地址
      */
-    @Column(name = "ip_address", columnDefinition = "INET")
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
     /**
@@ -72,7 +78,7 @@ public class Device extends BaseEntity {
     /**
      * MAC地址
      */
-    @Column(name = "mac_address", columnDefinition = "MACADDR")
+    @Column(name = "mac_address", length = 17)
     private String macAddress;
 
     /**
@@ -97,12 +103,14 @@ public class Device extends BaseEntity {
      * 设备配置 (JSON格式)
      */
     @Column(name = "config", columnDefinition = "JSONB")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String config;
 
     /**
      * 设备凭据 (JSON格式，加密存储)
      */
     @Column(name = "credentials", columnDefinition = "JSONB")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private String credentials;
 
     /**

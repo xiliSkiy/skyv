@@ -60,9 +60,9 @@ public class DeviceQueryRequest {
     private List<String> tags;
 
     /**
-     * 页码（从0开始）
+     * 页码（前端传入从1开始，后端需要转换为从0开始）
      */
-    private Integer page = 0;
+    private Integer page = 1;
 
     /**
      * 每页大小

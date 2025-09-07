@@ -3,11 +3,11 @@
     <!-- 标题区域 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
-        <h4>创建采集任务</h4>
+        <h4>{{ pageTitle }}</h4>
         <el-breadcrumb separator="/">
           <el-breadcrumb-item :to="{ path: '/dashboard' }">控制台</el-breadcrumb-item>
           <el-breadcrumb-item :to="{ path: '/task' }">采集任务调度</el-breadcrumb-item>
-          <el-breadcrumb-item>创建任务</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ buttonText }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="action-buttons">
@@ -23,10 +23,8 @@
     <!-- 步骤指示器 -->
     <div class="step-indicator mb-4">
       <el-steps :active="currentStep" finish-status="success">
-        <el-step title="基本信息" />
+        <el-step title="基本信息与调度配置" />
         <el-step title="设备选择" />
-        <el-step title="指标配置" />
-        <el-step title="调度设置" />
       </el-steps>
     </div>
 
@@ -79,7 +77,8 @@
           <div class="selection-content">
             <!-- 根据设备类型选择 -->
             <div v-if="activeSelectionTab === 'deviceType'">
-              <div class="mb-3">
+              <!-- 调试按钮 -->
+              <div class="mb-3 d-flex justify-content-between align-items-center">
                 <el-input
                   v-model="typeSearchQuery"
                   placeholder="搜索设备类型..."
@@ -89,6 +88,34 @@
                     <el-icon><Search /></el-icon>
                   </template>
                 </el-input>
+                <div class="ms-2">
+                  <el-button 
+                    type="info" 
+                    size="small" 
+                    @click="debugDeviceQuery"
+                    :loading="debugLoading"
+                    class="me-2"
+                  >
+                    <el-icon><Setting /></el-icon> 调试查询
+                  </el-button>
+                  <el-button 
+                    type="warning" 
+                    size="small" 
+                    @click="handleInitializeDeviceTypeCounts"
+                    :loading="initLoading"
+                    class="me-2"
+                  >
+                    <el-icon><Refresh /></el-icon> 修复统计
+                  </el-button>
+                  <el-button 
+                    type="success" 
+                    size="small" 
+                    @click="debugDeviceTable"
+                    :loading="tableDebugLoading"
+                  >
+                    <el-icon><Search /></el-icon> 查询设备表
+                  </el-button>
+                </div>
               </div>
               
               <div class="tree-view">
@@ -139,9 +166,13 @@
                 <div class="map-overlay">
                   <div class="mb-2 fw-bold">设备类型过滤:</div>
                   <el-checkbox v-model="showAllDevicesOnMap" label="显示所有设备" @change="filterMapMarkers" />
-                  <el-checkbox v-model="showCamerasOnMap" label="摄像头" @change="filterMapMarkers" />
-                  <el-checkbox v-model="showSensorsOnMap" label="传感器" @change="filterMapMarkers" />
-                  <el-checkbox v-model="showControllersOnMap" label="控制器" @change="filterMapMarkers" />
+                  <el-checkbox 
+                    v-for="type in deviceTypes" 
+                    :key="type.id"
+                    v-model="type.showOnMap" 
+                    :label="type.name" 
+                    @change="filterMapMarkers" 
+                  />
                 </div>
                 
                 <!-- 地图图例 -->
@@ -187,7 +218,6 @@
               <el-alert
                 type="info"
                 :closable="false"
-                show-icon
               >
                 当前已选择 <strong>{{ selectedTags.length }}</strong> 个标签，符合条件的设备有 <strong>{{ matchedDevicesByTags.length }}</strong> 台
               </el-alert>
@@ -478,7 +508,9 @@
     <div class="selected-device-counter" v-if="selectedDevices.length > 0">
       <el-icon><Check /></el-icon>
       <span class="number">{{ selectedDevices.length }}</span> 已选设备
-      <el-button size="small" @click="nextStep">下一步</el-button>
+      <el-button size="small" type="primary" @click="nextStep">
+        <el-icon><Check /></el-icon> {{ buttonText }}
+      </el-button>
     </div>
 
     <!-- 底部按钮 -->
@@ -486,8 +518,13 @@
       <el-button @click="prevStep">
         <el-icon class="el-icon--left"><ArrowLeft /></el-icon> 上一步
       </el-button>
-      <el-button type="primary" @click="nextStep" :disabled="selectedDevices.length === 0">
-        下一步 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+      <el-button 
+        type="primary" 
+        @click="nextStep" 
+        :disabled="selectedDevices.length === 0"
+        :loading="createTaskLoading"
+      >
+        <el-icon><Check /></el-icon> {{ buttonText }}
       </el-button>
     </div>
   </div>
@@ -499,17 +536,43 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Close, Monitor, Search, Select, FolderOpened, Folder,
   ArrowLeft, ArrowRight, Camera, Link, Connection, PriceTag, MapLocation, Collection,
-  List, Check, Grid, Warning, Delete, Download, InfoFilled, VideoCamera } from '@element-plus/icons-vue'
-import { getDeviceList, getDeviceGroups, getDevicesByGroupId, saveTaskDraft, getDevicesByType, getDevicesByTypeParam } from '@/api/device'
+  List, Check, Grid, Warning, Delete, Download, InfoFilled, VideoCamera, Setting, Refresh } from '@element-plus/icons-vue'
+import { getDeviceList, getDeviceGroups, getDevicesByGroupId, getDevicesByType, getDevicesByTypeParam, getDeviceTypeTree, getDeviceAreaTree, getDeviceGroupStats, getAllDeviceTypes, getAllDeviceTags, debugDeviceTypeCount, initializeDeviceTypeCounts } from '@/api/device'
+import { saveTaskDraft, createTask, updateTask } from '@/api/task'
 
 const router = useRouter()
 
-// 判断是否为编辑模式
-const isEdit = ref(false)
-const taskId = ref(null)
+// 判断是否为编辑模式（从localStorage获取）
+const storedData = JSON.parse(localStorage.getItem('taskCreateData') || '{}')
+const isEdit = ref(storedData.isEdit || false)
+const taskId = ref(storedData.taskId || null)
+
+// 动态获取编辑状态的计算属性
+const getCurrentEditState = () => {
+  const data = JSON.parse(localStorage.getItem('taskCreateData') || '{}')
+  return {
+    isEdit: data.isEdit || false,
+    taskId: data.taskId || null
+  }
+}
+
+// 计算属性：动态按钮文本
+const buttonText = computed(() => {
+  const state = getCurrentEditState()
+  return state.isEdit ? '更新任务' : '创建任务'
+})
+
+// 计算属性：动态页面标题
+const pageTitle = computed(() => {
+  const state = getCurrentEditState()
+  return state.isEdit ? '编辑采集任务' : '创建采集任务'
+})
 
 // 当前步骤
 const currentStep = ref(1)
+
+// 创建任务加载状态
+const createTaskLoading = ref(false)
 
 // 设备列表相关
 const loading = ref(false)
@@ -529,6 +592,11 @@ const activeSelectionTab = ref('deviceType')
 const deviceViewMode = ref('card')
 const deviceSortOrder = ref('name')
 
+// 调试状态
+const debugLoading = ref(false)
+const initLoading = ref(false) // 新增：初始化统计数据的加载状态
+const tableDebugLoading = ref(false) // 新增：查询设备表的加载状态
+
 // 搜索和过滤
 const searchQuery = ref('')
 const typeSearchQuery = ref('')
@@ -537,99 +605,167 @@ const filterStatus = ref('')
 const groupSearchQuery = ref('')
 
 // 设备类型树
-const deviceTypeTree = ref([
-  {
-    id: 'all',
-    label: '所有设备',
-    count: 56,
-    children: [
-      {
-        id: 'camera',
-        label: '摄像头',
-        type: 'camera',
-        count: 24,
-        children: [
-          { id: 'camera-hd', label: '高清摄像头', type: 'camera', count: 12 },
-          { id: 'camera-ir', label: '红外摄像头', type: 'camera', count: 8 },
-          { id: 'camera-ptz', label: '云台摄像头', type: 'camera', count: 4 }
-        ]
-      },
-      {
-        id: 'sensor',
-        label: '传感器',
-        type: 'sensor',
-        count: 18,
-        children: [
-          { id: 'sensor-temp', label: '温湿度传感器', type: 'sensor', count: 8 },
-          { id: 'sensor-smoke', label: '烟雾传感器', type: 'sensor', count: 6 },
-          { id: 'sensor-door', label: '门禁传感器', type: 'sensor', count: 4 }
-        ]
-      },
-      {
-        id: 'controller',
-        label: '控制器',
-        type: 'controller',
-        count: 14,
-        children: []
-      }
-    ]
-  }
-])
+const deviceTypeTree = ref([])
 const deviceTypeTreeRef = ref(null)
+
+// 从API获取的基础数据
+const deviceTypes = ref([])
+const deviceAreas = ref([])
+const deviceTags = ref([])
 
 // 区域位置选择
 const showAllDevicesOnMap = ref(true)
-const showCamerasOnMap = ref(true)
-const showSensorsOnMap = ref(true)
-const showControllersOnMap = ref(true)
 
-const locationMarkers = ref([
-  // 区域A
-  { id: 'cam-a1', type: 'camera', top: '30%', left: '25%', title: '摄像头区域A-1', selected: false },
-  { id: 'cam-a2', type: 'camera', top: '35%', left: '30%', title: '摄像头区域A-2', selected: false },
-  { id: 'sensor-a1', type: 'sensor', top: '25%', left: '20%', title: '温度传感器区域A-1', selected: false },
-  
-  // 区域B
-  { id: 'cam-b1', type: 'camera', top: '45%', left: '60%', title: '摄像头区域B-1', selected: false },
-  { id: 'cam-b2', type: 'camera', top: '50%', left: '65%', title: '摄像头区域B-2', selected: false },
-  { id: 'controller-b1', type: 'controller', top: '55%', left: '55%', title: '门禁控制器区域B-1', selected: false },
-  
-  // 区域C
-  { id: 'cam-c1', type: 'camera', top: '70%', left: '40%', title: '摄像头区域C-1', selected: false },
-  { id: 'sensor-c1', type: 'sensor', top: '75%', left: '35%', title: '烟雾传感器区域C-1', selected: false },
-  { id: 'controller-c1', type: 'controller', top: '65%', left: '45%', title: '环境控制器区域C-1', selected: false }
-])
-
-const locationZones = ref([
-  { id: 'zone-a', name: '区域A', deviceCount: 3, selected: false },
-  { id: 'zone-b', name: '区域B', deviceCount: 3, selected: false },
-  { id: 'zone-c', name: '区域C', deviceCount: 3, selected: false }
-])
+const locationMarkers = ref([])
+const locationZones = ref([])
 
 // 设备标签选择
 const tagCombination = ref('or')
-const availableTags = ref([
-  { name: '高清', count: 12, selected: false },
-  { name: '红外', count: 8, selected: false },
-  { name: '360度', count: 4, selected: false },
-  { name: '前门', count: 6, selected: false },
-  { name: '后门', count: 5, selected: false },
-  { name: '仓库', count: 10, selected: false },
-  { name: '办公区', count: 8, selected: false },
-  { name: '车库', count: 4, selected: false },
-  { name: '走廊', count: 6, selected: false },
-  { name: '门禁', count: 4, selected: false },
-  { name: '温度', count: 8, selected: false },
-  { name: '湿度', count: 8, selected: false },
-  { name: '烟雾', count: 6, selected: false },
-  { name: '重要', count: 15, selected: false },
-  { name: '备用', count: 5, selected: false }
-])
+const availableTags = ref([])  // 改为从API获取
 
 // 树形控件配置
 const defaultProps = {
-  children: 'children',
-  label: 'name'
+  children: 'children', 
+  label: 'label'
+}
+
+// 加载基础数据
+const loadBasicData = async () => {
+  try {
+    console.log('开始加载基础数据...')
+    
+    // 并行加载设备类型、区域、标签数据
+    const [typesRes, areasRes, tagsRes] = await Promise.all([
+      getAllDeviceTypes(),
+      getDeviceAreaTree(),
+      getAllDeviceTags()
+    ])
+    
+    console.log('设备类型API响应:', typesRes)
+    console.log('区域API响应:', areasRes)
+    console.log('标签API响应:', tagsRes)
+    
+    if (typesRes.code === 200) {
+      deviceTypes.value = typesRes.data || []
+      console.log('设置设备类型数据:', deviceTypes.value)
+      
+      // 检查每个设备类型的设备数量
+      deviceTypes.value.forEach(type => {
+        console.log(`设备类型: ${type.name} (${type.code}), 设备数量: ${type.deviceCount}`)
+      })
+      
+      // 构建设备类型树
+      deviceTypeTree.value = buildDeviceTypeTree(typesRes.data || [])
+      console.log('最终设备类型树:', deviceTypeTree.value)
+      
+      // 验证设备类型树中的数量信息
+      deviceTypeTree.value.forEach(node => {
+        console.log(`树节点: ${node.label}, 类型: ${node.type}, 数量: ${node.count}`)
+      })
+    } else {
+      console.warn('设备类型API响应异常:', typesRes)
+    }
+    
+    if (areasRes.code === 200) {
+      deviceAreas.value = areasRes.data || []
+      console.log('设置区域数据:', deviceAreas.value)
+      
+      // 构建区域位置数据
+      buildLocationData(areasRes.data || [])
+    } else {
+      console.warn('区域API响应异常:', areasRes)
+    }
+    
+    if (tagsRes.code === 200) {
+      const tags = tagsRes.data || []
+      console.log('设置标签数据:', tags)
+      
+      // 转换标签数据格式，添加selected属性
+      availableTags.value = tags.map(tag => ({
+        ...tag,
+        selected: false
+      }))
+    } else {
+      console.warn('标签API响应异常:', tagsRes)
+    }
+    
+    console.log('基础数据加载完成')
+  } catch (error) {
+    console.error('加载基础数据失败', error)
+    ElMessage.warning('部分基础数据加载失败，可能影响部分功能')
+  }
+}
+
+// 构建设备类型树
+const buildDeviceTypeTree = (types) => {
+  if (!types || !Array.isArray(types)) return []
+  
+  console.log('构建设备类型树，原始数据:', types)
+  
+  const tree = types.map(type => {
+    // 确保设备类型数据完整性
+    const treeNode = {
+      id: type.id,
+      label: type.name || `类型${type.id}`,  // 确保有显示标签
+      type: type.code?.toLowerCase() || 'other',
+      count: type.deviceCount || 0,
+      children: [],
+      showOnMap: true,
+      // 添加原始数据引用，便于调试
+      originalData: type
+    }
+    
+    console.log(`构建树节点: ID=${treeNode.id}, 名称=${treeNode.label}, 代码=${treeNode.type}, 设备数量=${treeNode.count}`)
+    console.log(`原始设备类型数据:`, type)
+    
+    // 验证设备数量字段
+    if (type.deviceCount !== undefined && type.deviceCount !== null) {
+      console.log(`设备类型 ${treeNode.label} 的设备数量: ${type.deviceCount} (来自API)`)
+    } else {
+      console.warn(`设备类型 ${treeNode.label} 的设备数量字段缺失或为空:`, type.deviceCount)
+    }
+    
+    return treeNode
+  })
+  
+  console.log('构建后的设备类型树:', tree)
+  
+  // 验证树节点的设备数量
+  tree.forEach(node => {
+    if (node.count > 0) {
+      console.log(`✅ 设备类型 ${node.label} 有 ${node.count} 台设备`)
+    } else {
+      console.warn(`⚠️ 设备类型 ${node.label} 显示 0 台设备`)
+    }
+  })
+  
+  return tree
+}
+
+// 构建区域位置数据
+const buildLocationData = (areas) => {
+  if (!areas || !Array.isArray(areas)) return
+  
+  // 构建区域数据
+  locationZones.value = areas.map(area => ({
+    id: `zone-${area.id}`,
+    name: area.name,
+    deviceCount: area.deviceCount || 0,
+    selected: false
+  }))
+  
+  // 这里可以根据实际需求构建地图标记数据
+  // 暂时使用模拟数据，实际项目中应该从后端获取
+  buildMockLocationMarkers()
+}
+
+// 构建模拟地图标记（实际项目中应该从后端获取）
+const buildMockLocationMarkers = () => {
+  // 这里可以根据设备列表和区域信息构建真实的地图标记
+  // 暂时保持原有的模拟数据逻辑
+  locationMarkers.value = [
+    // ... 原有的模拟数据
+  ]
 }
 
 // 过滤后的设备列表
@@ -706,32 +842,40 @@ const offlineDevicesCount = computed(() => {
 
 // 获取设备类型图标
 const getDeviceIcon = (type) => {
-  switch (type) {
-    case 'camera': return Camera
-    case 'sensor': return Connection
-    case 'controller': return Link
-    default: return Monitor
+  // 根据设备类型代码获取图标
+  const deviceType = deviceTypes.value.find(t => t.code?.toLowerCase() === type?.toLowerCase())
+  if (deviceType) {
+    // 可以根据设备类型名称或其他属性返回不同图标
+    switch (type?.toLowerCase()) {
+      case 'camera': return Camera
+      case 'sensor': return Connection
+      case 'controller': return Link
+      default: return Monitor
+    }
   }
+  return Monitor
 }
 
 // 获取设备类型标签样式
 const getDeviceTypeTag = (type) => {
-  switch (type) {
-    case 'camera': return 'success'
-    case 'sensor': return 'primary'
-    case 'controller': return 'warning'
-    default: return 'info'
+  // 根据设备类型代码获取标签样式
+  const deviceType = deviceTypes.value.find(t => t.code?.toLowerCase() === type?.toLowerCase())
+  if (deviceType) {
+    switch (type?.toLowerCase()) {
+      case 'camera': return 'success'
+      case 'sensor': return 'primary'
+      case 'controller': return 'warning'
+      default: return 'info'
+    }
   }
+  return 'info'
 }
 
 // 获取设备类型标签文本
 const getDeviceTypeLabel = (type) => {
-  switch (type) {
-    case 'camera': return '摄像头'
-    case 'sensor': return '传感器'
-    case 'controller': return '控制器'
-    default: return '其他'
-  }
+  // 从API获取的设备类型数据中查找对应的名称
+  const deviceType = deviceTypes.value.find(t => t.code?.toLowerCase() === type?.toLowerCase())
+  return deviceType ? deviceType.name : '其他'
 }
 
 // 获取状态标签样式
@@ -756,7 +900,21 @@ const getStatusLabel = (status) => {
 
 // 获取特定类型的设备数量
 const getDeviceTypeCount = (type) => {
-  return selectedDevices.value.filter(device => device.type === type).length
+  console.log(`获取设备类型 ${type} 的数量，当前selectedDevices:`, selectedDevices.value)
+  
+  // 从已选设备中统计指定类型的设备数量
+  const count = selectedDevices.value.filter(device => {
+    // 支持多种类型匹配方式
+    const deviceType = device.type?.toLowerCase()
+    const targetType = type?.toLowerCase()
+    
+    return deviceType === targetType || 
+           deviceType?.includes(targetType) || 
+           targetType?.includes(deviceType)
+  }).length
+  
+  console.log(`设备类型 ${type} 的已选数量: ${count}`)
+  return count
 }
 
 // 处理表格选择变更
@@ -831,69 +989,241 @@ const handleDeviceCheckboxChange = (device, checked) => {
 
 // 处理设备类型树选择
 const handleTypeCheck = (data, checked) => {
+  console.log('设备类型选择事件:', { data, checked })
+  console.log('选中的节点数据:', data)
+  console.log('选中状态:', checked)
+  
+  // 获取有效的设备类型ID
+  let deviceTypeId = null
+  
   if (checked.checkedKeys.includes(data.id)) {
+    console.log(`选择设备类型: ${data.name} (ID: ${data.id})`)
+    console.log(`设备类型代码: ${data.type}`)
+    console.log(`设备数量: ${data.count}`)
+    
+    // 直接使用设备类型ID
+    deviceTypeId = data.id
+    
     // 如果是父节点，选择所有子节点
     if (data.children && data.children.length > 0) {
-      addDevicesByType(data.type || data.id)
+      console.log(`父节点，包含 ${data.children.length} 个子类型`)
+      addDevicesByTypeId(deviceTypeId)
     } else {
       // 叶子节点，直接添加对应类型的设备
-      addDevicesByType(data.type || data.id)
+      console.log(`叶子节点，直接添加设备`)
+      addDevicesByTypeId(deviceTypeId)
     }
   } else {
+    console.log(`取消选择设备类型: ${data.name} (ID: ${data.id})`)
     // 取消选择
     if (data.children && data.children.length > 0) {
-      removeDevicesByType(data.type || data.id)
+      removeDevicesByTypeId(deviceTypeId)
     } else {
-      removeDevicesByType(data.type || data.id)
+      removeDevicesByTypeId(deviceTypeId)
     }
   }
 }
 
-// 根据类型添加设备
-const addDevicesByType = async (type) => {
+// 根据设备类型ID添加设备
+const addDevicesByTypeId = async (typeId) => {
+  // 参数验证
+  if (!typeId || typeof typeId !== 'number') {
+    console.warn('addDevicesByTypeId: 无效的设备类型ID参数', typeId)
+    return
+  }
+  
   try {
     loading.value = true
+    console.log(`正在获取设备类型ID: ${typeId} 的设备...`)
+    
     // 获取指定类型的设备
     let res
-    if (type === 'camera' || type === 'sensor' || type === 'controller') {
-      // 使用路径参数的API
-      res = await getDevicesByType(type)
-    } else {
-      // 使用查询参数的API
-      res = await getDevicesByTypeParam(type)
+    
+    // 使用设备列表查询接口，通过设备类型ID过滤
+    console.log(`正在查询设备类型ID: ${typeId} 的设备...`)
+    
+    // 先尝试不带任何过滤条件查询所有设备，看看数据库中有多少设备
+    console.log('先查询所有设备，检查数据库状态...')
+    const allDevicesRes = await getDeviceList({
+      page: 1,
+      limit: 1000
+    })
+    console.log('所有设备查询结果:', allDevicesRes)
+    
+    // 然后查询指定类型的设备
+    res = await getDeviceList({
+      deviceTypeId: typeId,
+      page: 1,
+      limit: 1000  // 获取足够多的设备
+    })
+    
+    console.log('指定类型设备查询结果:', res)
+    console.log('查询参数:', { deviceTypeId: typeId, page: 1, limit: 1000 })
+    
+    // 验证API响应数据的有效性
+    if (!res) {
+      console.warn('API响应为空')
+      ElMessage.warning('获取设备信息失败：API响应为空')
+      return
     }
     
-    if (res.data && res.data.length > 0) {
-      res.data.forEach(device => {
-        if (!selectedDevices.value.some(d => d.id === device.id)) {
-          selectedDevices.value.push(device)
+    if (!res.data) {
+      console.warn('API响应中没有data字段:', res)
+      ElMessage.warning('获取设备信息失败：响应数据格式错误')
+      return
+    }
+    
+    // 处理分页响应格式
+    let deviceList = []
+    if (Array.isArray(res.data)) {
+      // 直接数组格式
+      deviceList = res.data
+      console.log('检测到直接数组响应格式:', res.data)
+    } else if (res.data.content && Array.isArray(res.data.content)) {
+      // 分页格式，提取content字段
+      deviceList = res.data.content
+      console.log('检测到分页响应格式，提取content字段:', res.data.content)
+    } else {
+      console.warn('API响应的data字段格式不正确:', res.data)
+      ElMessage.warning('获取设备信息失败：响应数据格式错误')
+      return
+    }
+    
+    if (deviceList.length === 0) {
+      console.log(`未找到设备类型ID: ${typeId} 的设备`)
+      console.log('可能的原因：')
+      console.log('1. 数据库中没有该类型的设备')
+      console.log('2. 设备表中的device_type_id字段设置不正确')
+      console.log('3. 查询条件有问题')
+      console.log('4. 设备被软删除了')
+      
+      // 显示更详细的错误信息
+      ElMessage.warning(`未找到该类型的设备。请检查数据库中设备表的device_type_id字段是否正确设置。`)
+      return
+    }
+    
+    console.log(`找到 ${deviceList.length} 台设备类型ID: ${typeId} 的设备`)
+    console.log('设备数据详情:', deviceList)
+    
+    if (deviceList && Array.isArray(deviceList) && deviceList.length > 0) {
+      let addedCount = 0
+      
+      // 处理获取到的设备数据
+      deviceList.forEach((device, index) => {
+        console.log(`处理第 ${index + 1} 个设备数据:`, device)
+        
+        // 验证设备数据是否为有效对象
+        if (!device || typeof device !== 'object' || Array.isArray(device)) {
+          console.warn(`跳过无效的设备数据:`, device)
+          return
+        }
+        
+        // 确保设备对象有必要的属性
+        const deviceWithDefaults = {
+          id: device.id || `device_${Date.now()}_${index}`,
+          name: device.name || `设备${device.id || index}`,
+          type: device.deviceType?.code || device.type || 'unknown',
+          status: device.status || 'offline',
+          ip: device.ipAddress || device.ip || '',
+          location: device.area?.name || device.location || '',
+          lastOnline: device.lastOnlineAt || device.lastOnline || '',
+          selected: false
+        }
+        
+        // 安全地添加原始数据属性
+        try {
+          if (device && typeof device === 'object' && !Array.isArray(device)) {
+            // 手动复制需要的属性
+            const knownKeys = ['id', 'name', 'type', 'status', 'ipAddress', 'ip', 'location', 'lastOnlineAt', 'lastOnline', 'description', 'model', 'code']
+            
+            knownKeys.forEach(key => {
+              if (device[key] !== undefined && !deviceWithDefaults.hasOwnProperty(key)) {
+                deviceWithDefaults[key] = device[key]
+              }
+            })
+            
+            console.log(`手动复制属性完成，结果:`, deviceWithDefaults)
+          }
+        } catch (error) {
+          console.warn(`处理设备属性时出错:`, error)
+        }
+        
+        console.log(`处理后的设备数据:`, deviceWithDefaults)
+        
+        // 检查是否已经选择过
+        if (!selectedDevices.value.some(d => d.id === deviceWithDefaults.id)) {
+          selectedDevices.value.push(deviceWithDefaults)
+          addedCount++
+          console.log(`添加设备到选择列表:`, deviceWithDefaults)
           
           // 同步设备卡片选择状态
-          const foundDevice = devices.value.find(d => d.id === device.id)
+          const foundDevice = devices.value.find(d => d.id === deviceWithDefaults.id)
           if (foundDevice) {
             foundDevice.selected = true
           }
+        } else {
+          console.log(`设备 ${deviceWithDefaults.name} 已经在选择列表中`)
         }
       })
+      
+      // 显示成功消息
+      if (addedCount > 0) {
+        ElMessage.success(`成功添加 ${addedCount} 台设备到选择列表`)
+        console.log(`总共添加了 ${addedCount} 台设备到选择列表`)
+      } else {
+        ElMessage.info(`所有设备已在选择列表中`)
+      }
+    } else {
+      console.log(`未找到设备类型ID: ${typeId} 的设备`)
+      ElMessage.info(`未找到该类型的设备`)
     }
   } catch (error) {
-    console.error(`获取${type}类型设备失败`, error)
-    ElMessage.error(`获取${type}类型设备失败`)
+    console.error(`获取设备类型ID: ${typeId} 的设备失败`, error)
+    console.error('错误详情:', {
+      message: error.message,
+      stack: error.stack,
+      typeId: typeId
+    })
+    ElMessage.error(`获取设备失败: ${error.message || '未知错误'}`)
   } finally {
     loading.value = false
   }
 }
 
-// 根据类型移除设备
-const removeDevicesByType = (type) => {
-  const devicesToRemove = selectedDevices.value.filter(device => 
-    device.type === type || 
-    (type === 'all' && device)
-  )
+// 根据设备类型ID移除设备
+const removeDevicesByTypeId = async (typeId) => {
+  if (!typeId) return
   
-  devicesToRemove.forEach(device => {
-    removeSelectedDevice(device)
-  })
+  try {
+    // 获取该类型下的所有设备
+    const res = await getDeviceList({
+      deviceTypeId: typeId,
+      page: 1,
+      limit: 1000
+    })
+    
+    if (res && res.data) {
+      let deviceList = []
+      if (Array.isArray(res.data)) {
+        deviceList = res.data
+      } else if (res.data.content && Array.isArray(res.data.content)) {
+        deviceList = res.data.content
+      }
+      
+      // 从已选设备中移除该类型的设备
+      deviceList.forEach(device => {
+        const index = selectedDevices.value.findIndex(d => d.id === device.id)
+        if (index !== -1) {
+          selectedDevices.value.splice(index, 1)
+          console.log(`移除设备: ${device.name}`)
+        }
+      })
+      
+      ElMessage.success(`已移除该类型的所有设备`)
+    }
+  } catch (error) {
+    console.error(`移除设备类型ID: ${typeId} 的设备失败`, error)
+  }
 }
 
 // 切换地图标记选择
@@ -922,11 +1252,9 @@ const filterMapMarkers = () => {
     let visible = showAllDevicesOnMap.value
     
     if (!showAllDevicesOnMap.value) {
-      if (marker.type === 'camera' && showCamerasOnMap.value) {
-        visible = true
-      } else if (marker.type === 'sensor' && showSensorsOnMap.value) {
-        visible = true
-      } else if (marker.type === 'controller' && showControllersOnMap.value) {
+      // 根据设备类型代码查找对应的显示状态
+      const deviceType = deviceTypes.value.find(t => t.code?.toLowerCase() === marker.type?.toLowerCase())
+      if (deviceType && deviceType.showOnMap) {
         visible = true
       } else {
         visible = false
@@ -1079,6 +1407,10 @@ const fetchDevices = async () => {
       
       // 恢复已选设备的选中状态
       nextTick(() => {
+        // 先尝试匹配编辑模式的设备选择
+        matchSelectedDevices()
+        
+        // 然后恢复已选设备的选中状态
         selectedDevices.value.forEach(device => {
           const found = devices.value.find(d => d.id === device.id)
           if (found) {
@@ -1108,6 +1440,269 @@ const fetchDeviceGroups = async () => {
   }
 }
 
+// 获取设备类型树
+const fetchDeviceTypeTree = async () => {
+  try {
+    const res = await getDeviceTypeTree()
+    if (res.data) {
+      deviceTypeTree.value = res.data
+    }
+  } catch (error) {
+    console.error('获取设备类型树失败', error)
+    ElMessage.error('获取设备类型树失败')
+    // 如果API失败，使用mock数据作为备用
+    deviceTypeTree.value = [
+      {
+        id: 'all',
+        name: '所有设备',
+        label: '所有设备',
+        count: 56,
+        children: [
+          {
+            id: 'camera',
+            name: '摄像头',
+            label: '摄像头',
+            type: 'camera',
+            count: 24,
+            children: [
+              { id: 'camera-hd', name: '高清摄像头', label: '高清摄像头', type: 'camera', count: 12 },
+              { id: 'camera-ir', name: '红外摄像头', label: '红外摄像头', type: 'camera', count: 8 },
+              { id: 'camera-ptz', name: '云台摄像头', label: '云台摄像头', type: 'camera', count: 4 }
+            ]
+          },
+          {
+            id: 'sensor',
+            name: '传感器',
+            label: '传感器',
+            type: 'sensor',
+            count: 18,
+            children: [
+              { id: 'sensor-temp', name: '温湿度传感器', label: '温湿度传感器', type: 'sensor', count: 8 },
+              { id: 'sensor-smoke', name: '烟雾传感器', label: '烟雾传感器', type: 'sensor', count: 6 },
+              { id: 'sensor-door', name: '门禁传感器', label: '门禁传感器', type: 'sensor', count: 4 }
+            ]
+          },
+          {
+            id: 'controller',
+            name: '控制器',
+            label: '控制器',
+            type: 'controller',
+            count: 14,
+            children: []
+          }
+        ]
+      }
+    ]
+  }
+}
+
+// 获取设备区域信息 
+const fetchDeviceAreas = async () => {
+  try {
+    const res = await getDeviceAreaTree()
+    if (res.data) {
+      // 根据区域数据生成位置标记和区域信息
+      generateLocationMarkersFromAreas(res.data)
+    }
+  } catch (error) {
+    console.error('获取设备区域失败', error)
+    ElMessage.error('获取设备区域失败')
+    // 使用mock数据作为备用
+    generateMockLocationData()
+  }
+}
+
+// 根据区域数据生成位置标记
+const generateLocationMarkersFromAreas = (areas) => {
+  const markers = []
+  const zones = []
+  
+  areas.forEach((area, index) => {
+    // 生成区域信息
+    zones.push({
+      id: `zone-${area.id}`,
+      name: area.name,
+      deviceCount: area.deviceCount || 0,
+      selected: false
+    })
+    
+    // 为每个区域生成一些设备标记（简化实现）
+    if (area.devices) {
+      area.devices.forEach((device, deviceIndex) => {
+        markers.push({
+          id: `${device.type}-${area.id}-${deviceIndex}`,
+          type: device.type,
+          top: `${30 + index * 20 + deviceIndex * 5}%`,
+          left: `${25 + index * 30 + deviceIndex * 10}%`,
+          title: `${device.name}`,
+          selected: false,
+          areaId: area.id
+        })
+      })
+    }
+  })
+  
+  locationMarkers.value = markers
+  locationZones.value = zones
+}
+
+// 生成mock位置数据
+const generateMockLocationData = () => {
+  locationMarkers.value = [
+    // 区域A
+    { id: 'cam-a1', type: 'camera', top: '30%', left: '25%', title: '摄像头区域A-1', selected: false },
+    { id: 'cam-a2', type: 'camera', top: '35%', left: '30%', title: '摄像头区域A-2', selected: false },
+    { id: 'sensor-a1', type: 'sensor', top: '25%', left: '20%', title: '温度传感器区域A-1', selected: false },
+    
+    // 区域B
+    { id: 'cam-b1', type: 'camera', top: '45%', left: '60%', title: '摄像头区域B-1', selected: false },
+    { id: 'cam-b2', type: 'camera', top: '50%', left: '65%', title: '摄像头区域B-2', selected: false },
+    { id: 'controller-b1', type: 'controller', top: '55%', left: '55%', title: '门禁控制器区域B-1', selected: false },
+    
+    // 区域C
+    { id: 'cam-c1', type: 'camera', top: '70%', left: '40%', title: '摄像头区域C-1', selected: false },
+    { id: 'sensor-c1', type: 'sensor', top: '75%', left: '35%', title: '烟雾传感器区域C-1', selected: false },
+    { id: 'controller-c1', type: 'controller', top: '65%', left: '45%', title: '环境控制器区域C-1', selected: false }
+  ]
+  
+  locationZones.value = [
+    { id: 'zone-a', name: '区域A', deviceCount: 3, selected: false },
+    { id: 'zone-b', name: '区域B', deviceCount: 3, selected: false },
+    { id: 'zone-c', name: '区域C', deviceCount: 3, selected: false }
+  ]
+}
+
+// 调试设备查询
+const debugDeviceQuery = async () => {
+  debugLoading.value = true
+  try {
+    console.log('=== 开始调试设备查询 ===')
+    
+    // 1. 测试查询所有设备
+    console.log('1. 测试查询所有设备...')
+    const allDevicesRes = await getDeviceList({
+      page: 1,
+      limit: 10
+    })
+    console.log('所有设备查询结果:', allDevicesRes)
+    
+    // 2. 测试查询指定类型的设备
+    if (deviceTypes.value.length > 0) {
+      const firstType = deviceTypes.value[0]
+      console.log(`2. 测试查询设备类型 ${firstType.name} (ID: ${firstType.id}) 的设备...`)
+      
+      const typeDevicesRes = await getDeviceList({
+        deviceTypeId: firstType.id,
+        page: 1,
+        limit: 10
+      })
+      console.log('指定类型设备查询结果:', typeDevicesRes)
+      
+      // 3. 调用后端调试API
+      console.log(`3. 调用后端调试API，检查设备类型 ${firstType.name} 的统计问题...`)
+      try {
+        const debugRes = await debugDeviceTypeCount(firstType.id)
+        console.log('后端调试API响应:', debugRes)
+        
+        if (debugRes.code === 200 && debugRes.data) {
+          const debugInfo = debugRes.data
+          console.log('=== 后端调试信息 ===')
+          console.log('设备类型信息:', debugInfo.deviceType)
+          console.log('活跃设备数量:', debugInfo.activeDeviceCount)
+          console.log('总设备数量(含软删除):', debugInfo.totalDeviceCount)
+          console.log('软删除设备数量:', debugInfo.deletedDeviceCount)
+          console.log('数据是否一致:', debugInfo.isConsistent)
+          
+          if (!debugInfo.isConsistent) {
+            console.warn('⚠️ 数据不一致详情:', debugInfo.inconsistency)
+          }
+        }
+      } catch (debugError) {
+        console.warn('后端调试API调用失败:', debugError)
+      }
+      
+      // 4. 分析结果
+      if (typeDevicesRes && typeDevicesRes.data) {
+        let deviceCount = 0
+        if (Array.isArray(typeDevicesRes.data)) {
+          deviceCount = typeDevicesRes.data.length
+        } else if (typeDevicesRes.data.content) {
+          deviceCount = typeDevicesRes.data.content.length
+        }
+        
+        console.log(`设备类型 ${firstType.name} 实际查询到 ${deviceCount} 台设备`)
+        console.log(`但设备类型树显示该类型有 ${firstType.deviceCount} 台设备`)
+        
+        if (deviceCount !== firstType.deviceCount) {
+          console.warn('⚠️ 设备数量不匹配！')
+          console.warn(`- 实际查询结果: ${deviceCount} 台`)
+          console.warn(`- 设备类型统计: ${firstType.deviceCount} 台`)
+          console.warn('可能的原因:')
+          console.warn('1. 设备表中的device_type_id字段设置不正确')
+          console.warn('2. 设备被软删除了')
+          console.warn('3. 设备类型统计计算有误')
+          
+          // 进一步分析查询参数和响应
+          console.log('=== 详细查询分析 ===')
+          console.log('查询参数:', { deviceTypeId: firstType.id, page: 1, limit: 10 })
+          console.log('查询响应结构:', typeDevicesRes.data)
+          
+          // 检查是否有分页信息
+          if (typeDevicesRes.data.total !== undefined) {
+            console.log('分页总数:', typeDevicesRes.data.total)
+          }
+          if (typeDevicesRes.data.size !== undefined) {
+            console.log('分页大小:', typeDevicesRes.data.size)
+          }
+          if (typeDevicesRes.data.number !== undefined) {
+            console.log('当前页码:', typeDevicesRes.data.number)
+          }
+        } else {
+          console.log('✅ 设备数量匹配')
+        }
+      } else {
+        console.warn('⚠️ 设备查询响应格式异常')
+        console.log('查询响应:', typeDevicesRes)
+      }
+    }
+    
+    // 5. 显示调试结果
+    ElMessage.success('调试查询完成，请查看控制台输出')
+    
+  } catch (error) {
+    console.error('调试设备查询失败', error)
+    ElMessage.error(`调试查询失败: ${error.message || '未知错误'}`)
+  } finally {
+    debugLoading.value = false
+  }
+}
+
+// 初始化设备类型统计数据
+const handleInitializeDeviceTypeCounts = async () => {
+  initLoading.value = true
+  try {
+    console.log('开始初始化设备类型统计数据...')
+    const res = await initializeDeviceTypeCounts()
+    if (res.code === 200) {
+      console.log('设备类型统计数据初始化成功')
+      ElMessage.success('设备类型统计数据已初始化')
+      
+      // 重新加载基础数据以获取更新后的统计
+      await loadBasicData()
+    } else {
+      console.warn('初始化设备类型统计数据失败:', res)
+      ElMessage.warning('初始化设备类型统计数据失败')
+    }
+  } catch (error) {
+    console.error('初始化设备类型统计数据失败', error)
+    ElMessage.error('初始化设备类型统计数据失败')
+  } finally {
+    initLoading.value = false
+  }
+}
+
+
+
 // 上一步
 const prevStep = () => {
   // 保存当前数据到本地存储
@@ -1117,18 +1712,83 @@ const prevStep = () => {
   router.push('/task/create')
 }
 
-// 下一步
-const nextStep = () => {
+// 创建任务
+const nextStep = async () => {
   if (selectedDevices.value.length === 0) {
     ElMessage.warning('请至少选择一个设备')
     return
   }
   
-  // 保存当前数据到本地存储
-  saveCurrentData()
+  createTaskLoading.value = true
   
-  // 跳转到下一步
-  router.push('/task/create/metrics')
+  try {
+    // 获取第一步的所有数据
+    const allData = JSON.parse(localStorage.getItem('taskCreateData') || '{}')
+    
+    // 更新编辑状态（从localStorage获取最新状态）
+    const currentIsEdit = allData.isEdit || false
+    const currentTaskId = allData.taskId || null
+    
+    console.log('从localStorage获取的编辑状态:', currentIsEdit, '任务ID:', currentTaskId)
+    
+    // 构建任务创建请求（排除不需要的metricsConfig）
+    const { metricsConfig, step, isEdit, taskId, ...cleanData } = allData
+    
+    // 字段映射：前端字段名 -> 后端字段名
+    const taskRequest = {
+      name: cleanData.taskName,                    // taskName -> name
+      description: cleanData.description,
+      scheduleType: cleanData.scheduleType,
+      scheduleConfig: cleanData.scheduleConfig,
+      targetDevices: selectedDevices.value.map(device => device.id), // 只发送设备ID列表
+      priority: cleanData.priority,
+      timeout: cleanData.timeout,
+      maxConcurrency: cleanData.maxConcurrency,
+      retryTimes: cleanData.retryTimes,
+      tags: cleanData.tags,                       // 现在应该是字符串数组
+      effectiveTime: cleanData.effectiveTime,     // 生效时间
+      expireTime: cleanData.expireTime,           // 失效时间
+      remarks: cleanData.remarks || cleanData.description
+    }
+    
+    console.log(currentIsEdit ? '编辑任务请求数据:' : '创建任务请求数据:', taskRequest)
+    console.log('选中的设备数量:', selectedDevices.value.length)
+    console.log('设备ID列表:', selectedDevices.value.map(device => device.id))
+    console.log('编辑模式:', currentIsEdit, '任务ID:', currentTaskId)
+    
+    // 根据编辑模式调用不同的API
+    let result
+    if (currentIsEdit && currentTaskId) {
+      // 编辑模式：调用更新任务API
+      console.log('调用更新任务API, 任务ID:', currentTaskId)
+      result = await updateTask(currentTaskId, taskRequest)
+    } else {
+      // 创建模式：调用创建任务API
+      console.log('调用创建任务API')
+      result = await createTask(taskRequest)
+    }
+    
+    if (result.code === 200) {
+      const successMessage = currentIsEdit ? '任务更新成功！正在跳转到任务列表...' : '任务创建成功！正在跳转到任务列表...'
+      ElMessage.success(successMessage)
+      localStorage.removeItem('taskCreateData')
+      localStorage.removeItem('taskDraftId')
+      
+      // 延迟跳转，让用户看到成功消息
+      setTimeout(() => {
+        router.push('/task')
+      }, 1000)
+    } else {
+      const errorMessage = currentIsEdit ? '任务更新失败' : '任务创建失败'
+      ElMessage.error(result.message || errorMessage)
+    }
+  } catch (error) {
+    const errorAction = currentIsEdit ? '更新任务' : '创建任务'
+    console.error(`${errorAction}失败`, error)
+    ElMessage.error(`${errorAction}失败，请检查网络连接或联系管理员`)
+  } finally {
+    createTaskLoading.value = false
+  }
 }
 
 // 保存当前数据到本地存储
@@ -1152,7 +1812,7 @@ const saveDraft = async () => {
     
     const draftData = {
       ...prevData,
-      step: 1,
+      step: 2,
       selectedDevices: selectedDevices.value
     }
     
@@ -1181,7 +1841,7 @@ const cancel = () => {
 }
 
 // 恢复数据
-const restoreData = () => {
+const restoreData = async () => {
   const storedData = JSON.parse(localStorage.getItem('taskCreateData') || '{}')
   
   // 恢复编辑状态和任务ID
@@ -1191,23 +1851,133 @@ const restoreData = () => {
   // 恢复已选设备
   if (storedData.selectedDevices && Array.isArray(storedData.selectedDevices)) {
     selectedDevices.value = storedData.selectedDevices
+  } else if (isEdit.value && taskId.value) {
+    // 编辑模式：从任务详情中恢复设备选择
+    try {
+      const taskEditData = localStorage.getItem('taskEditData')
+      if (taskEditData) {
+        const taskData = JSON.parse(taskEditData)
+        if (taskData.targetDevices && Array.isArray(taskData.targetDevices)) {
+          console.log('从任务详情恢复设备选择:', taskData.targetDevices)
+          
+          // 等待设备列表加载完成后再匹配设备
+          await nextTick()
+          
+          // 根据设备ID匹配设备对象
+          const selectedDeviceIds = taskData.targetDevices
+          // 这里需要等待设备列表加载完成后再进行匹配
+          // 我们将在设备列表加载完成后调用 matchSelectedDevices
+          window.pendingDeviceIds = selectedDeviceIds
+        }
+      }
+    } catch (error) {
+      console.error('恢复设备选择失败:', error)
+    }
+  }
+}
+
+// 匹配选中的设备（在设备列表加载完成后调用）
+const matchSelectedDevices = () => {
+  if (window.pendingDeviceIds && Array.isArray(window.pendingDeviceIds)) {
+    const deviceIds = window.pendingDeviceIds
+    const matchedDevices = devices.value.filter(device => deviceIds.includes(device.id))
+    selectedDevices.value = matchedDevices
+    console.log('匹配到的设备:', matchedDevices.length, '个')
+    
+    // 清理临时数据
+    delete window.pendingDeviceIds
   }
 }
 
 // 页面初始化
-onMounted(() => {
+onMounted(async () => {
   // 恢复数据
   restoreData()
   
-  // 获取设备列表和分组
+  // 先加载基础数据（设备类型、区域、标签）
+  await loadBasicData()
+  
+  // 获取所有数据
   fetchDevices()
   fetchDeviceGroups()
+  fetchDeviceAreas()
 })
 
 // 监听搜索和过滤条件变化
 watch([searchQuery, filterType, filterStatus], () => {
   filterDevices()
 })
+
+// 直接查询设备表，检查设备数据
+const debugDeviceTable = async () => {
+  tableDebugLoading.value = true
+  try {
+    console.log('=== 开始查询设备表数据 ===')
+    
+    // 1. 查询所有设备（不限制类型）
+    console.log('1. 查询所有设备...')
+    const allDevicesRes = await getDeviceList({
+      page: 1,
+      limit: 100
+    })
+    console.log('所有设备查询结果:', allDevicesRes)
+    
+    if (allDevicesRes && allDevicesRes.data) {
+      let allDevices = []
+      if (Array.isArray(allDevicesRes.data)) {
+        allDevices = allDevicesRes.data
+      } else if (allDevicesRes.data.content) {
+        allDevices = allDevicesRes.data.content
+      }
+      
+      console.log(`总共找到 ${allDevices.length} 台设备`)
+      
+      // 2. 分析每台设备的类型信息
+      console.log('2. 分析设备类型信息...')
+      allDevices.forEach((device, index) => {
+        console.log(`设备 ${index + 1}:`, {
+          id: device.id,
+          name: device.name,
+          deviceTypeId: device.deviceTypeId,
+          deviceType: device.deviceType,
+          status: device.status,
+          deletedAt: device.deletedAt
+        })
+      })
+      
+      // 3. 统计各类型的设备数量
+      console.log('3. 统计各类型设备数量...')
+      const typeCounts = {}
+      allDevices.forEach(device => {
+        const typeId = device.deviceTypeId
+        if (typeId) {
+          typeCounts[typeId] = (typeCounts[typeId] || 0) + 1
+        }
+      })
+      console.log('各类型设备数量统计:', typeCounts)
+      
+      // 4. 对比设备类型统计
+      if (deviceTypes.value.length > 0) {
+        console.log('4. 对比设备类型统计...')
+        deviceTypes.value.forEach(type => {
+          const actualCount = typeCounts[type.id] || 0
+          console.log(`设备类型 ${type.name} (ID: ${type.id}):`)
+          console.log(`  - 统计显示: ${type.deviceCount} 台`)
+          console.log(`  - 实际查询: ${actualCount} 台`)
+          console.log(`  - 是否匹配: ${type.deviceCount === actualCount ? '✅' : '❌'}`)
+        })
+      }
+    }
+    
+    ElMessage.success('设备表查询完成，请查看控制台输出')
+    
+  } catch (error) {
+    console.error('查询设备表失败', error)
+    ElMessage.error(`查询设备表失败: ${error.message || '未知错误'}`)
+  } finally {
+    tableDebugLoading.value = false
+  }
+}
 </script>
 
 <style scoped>

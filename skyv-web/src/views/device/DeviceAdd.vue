@@ -87,14 +87,16 @@
               </el-row>
               <el-row :gutter="20">
                 <el-col :span="12">
-                  <el-form-item label="设备类型" prop="type">
-                    <el-select v-model="deviceForm.type" placeholder="请选择设备类型" style="width: 100%;">
-                      <el-option label="摄像头" value="CAMERA" />
-                      <el-option label="传感器" value="SENSOR" />
-                      <el-option label="门禁" value="ACCESS" />
-                      <el-option label="其他" value="OTHER" />
-                    </el-select>
-                  </el-form-item>
+                          <el-form-item label="设备类型" prop="deviceTypeId">
+          <el-select v-model="deviceForm.deviceTypeId" placeholder="请选择设备类型" style="width: 100%;">
+            <el-option
+              v-for="type in deviceTypes"
+              :key="type.id"
+              :label="type.name"
+              :value="type.id"
+            />
+          </el-select>
+        </el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item label="设备型号" prop="model">
@@ -112,19 +114,24 @@
                 <el-col :span="12">
                   <el-form-item label="设备分组" prop="groupId">
                     <el-select v-model="deviceForm.groupId" placeholder="请选择设备分组" style="width: 100%;">
-                      <el-option label="安防监控" :value="1" />
-                      <el-option label="环境监测" :value="2" />
-                      <el-option label="门禁管理" :value="3" />
+                      <el-option 
+                        v-for="group in deviceGroups" 
+                        :key="group.id" 
+                        :label="group.name" 
+                        :value="group.id" 
+                      />
                     </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="所属区域" prop="area">
-                    <el-select v-model="deviceForm.area" placeholder="请选择所属区域" style="width: 100%;">
-                      <el-option label="北区" value="NORTH" />
-                      <el-option label="南区" value="SOUTH" />
-                      <el-option label="东区" value="EAST" />
-                      <el-option label="西区" value="WEST" />
+                  <el-form-item label="所属区域" prop="areaId">
+                    <el-select v-model="deviceForm.areaId" placeholder="请选择所属区域" style="width: 100%;">
+                      <el-option 
+                        v-for="area in deviceAreas" 
+                        :key="area.id" 
+                        :label="area.name" 
+                        :value="area.id" 
+                      />
                     </el-select>
                   </el-form-item>
                 </el-col>
@@ -133,10 +140,12 @@
                 <el-col :span="12">
                   <el-form-item label="设备标签" prop="tags">
                     <el-select v-model="deviceForm.tags" multiple placeholder="请选择标签" style="width: 100%;">
-                      <el-option label="重要" value="IMPORTANT" />
-                      <el-option label="室外" value="OUTDOOR" />
-                      <el-option label="室内" value="INDOOR" />
-                      <el-option label="测试" value="TEST" />
+                      <el-option 
+                        v-for="tag in deviceTags" 
+                        :key="tag.id" 
+                        :label="tag.name" 
+                        :value="tag.id" 
+                      />
                     </el-select>
                   </el-form-item>
                 </el-col>
@@ -397,10 +406,10 @@
                 <el-descriptions :column="1" border>
                   <el-descriptions-item label="设备名称">{{ deviceForm.name }}</el-descriptions-item>
                   <el-descriptions-item label="设备编码">{{ deviceForm.code }}</el-descriptions-item>
-                  <el-descriptions-item label="设备类型">{{ getDeviceTypeText(deviceForm.type) }}</el-descriptions-item>
+                  <el-descriptions-item label="设备类型">{{ getDeviceTypeText(deviceForm.deviceTypeId) }}</el-descriptions-item>
                   <el-descriptions-item label="设备型号">{{ deviceForm.model || '-' }}</el-descriptions-item>
                   <el-descriptions-item label="设备分组">{{ getGroupText(deviceForm.groupId) }}</el-descriptions-item>
-                  <el-descriptions-item label="所属区域">{{ deviceForm.area || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="所属区域">{{ getAreaText(deviceForm.areaId) }}</el-descriptions-item>
                   <el-descriptions-item label="设备位置">{{ deviceForm.location || '-' }}</el-descriptions-item>
                 </el-descriptions>
               </el-card>
@@ -433,13 +442,13 @@
             </template>
             <div class="tag-list">
               <el-tag 
-                v-for="(tag, index) in deviceForm.tags" 
-                :key="index"
+                v-for="(tagId, index) in deviceForm.tags" 
+                :key="tagId"
                 :type="getTagType(index)" 
                 class="tag-item"
                 effect="plain"
               >
-                {{ tag }}
+                {{ getTagText(tagId) }}
               </el-tag>
               <el-empty v-if="!deviceForm.tags || deviceForm.tags.length === 0" description="暂无标签" />
             </div>
@@ -483,7 +492,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/date'
@@ -492,8 +501,9 @@ import {
   updateDevice, 
   getDeviceById,
   getDeviceTypes,
-  getDeviceGroups,
-  getDeviceAreas,
+  getAllDeviceGroups,
+  getDeviceAreaTree,
+  getAllDeviceTags,
   getDeviceTemplates
 } from '@/api/device'
 import {
@@ -520,6 +530,7 @@ const deviceTemplates = ref([
     id: 1,
     name: '会议室摄像头',
     type: 'CAMERA',
+    typeCode: 'CAMERA',
     applicableScenario: '会议室、办公室',
     description: '高清会议室摄像头，适用于中小型会议室',
     model: 'HK-DS2CD2032-I',
@@ -531,6 +542,7 @@ const deviceTemplates = ref([
     id: 2,
     name: '温湿度传感器',
     type: 'SENSOR',
+    typeCode: 'SENSOR',
     applicableScenario: '机房、仓库',
     description: '监测环境温湿度，支持远程报警',
     model: 'TH-100',
@@ -542,6 +554,7 @@ const deviceTemplates = ref([
     id: 3,
     name: '门禁控制器',
     type: 'ACCESS',
+    typeCode: 'ACCESS',
     applicableScenario: '出入口、重要区域',
     description: '支持刷卡、密码、人脸识别多种验证方式',
     model: 'AC-200',
@@ -553,6 +566,7 @@ const deviceTemplates = ref([
     id: 4,
     name: '停车场摄像头',
     type: 'CAMERA',
+    typeCode: 'CAMERA',
     applicableScenario: '停车场、出入口',
     description: '支持车牌识别，适用于室外环境',
     model: 'HK-DS2CD4A26FWD-IZS',
@@ -565,6 +579,12 @@ const deviceTemplates = ref([
 // 选中的模板ID
 const selectedTemplate = ref(null)
 
+// 基础数据
+const deviceGroups = ref([])
+const deviceAreas = ref([])
+const deviceTags = ref([])
+const deviceTypes = ref([])
+
 // 表单引用
 const basicFormRef = ref(null)
 const networkFormRef = ref(null)
@@ -574,7 +594,7 @@ const advancedFormRef = ref(null)
 const deviceForm = reactive({
   name: '',
   code: '',
-  type: 'CAMERA',
+  deviceTypeId: null,  // 改为与后端实体一致的字段名
   model: '',
   location: '',
   description: '',
@@ -589,8 +609,8 @@ const deviceForm = reactive({
   password: '',
   authType: 'DIGEST',
   autoReconnect: true,
-  groupId: 1,
-  area: '',
+  groupId: null,
+  areaId: null,
   tags: [],
   status: 1,
   autoDetect: true,
@@ -618,7 +638,7 @@ const basicRules = {
     { required: true, message: '请输入设备编码', trigger: 'blur' },
     { min: 2, max: 50, message: '长度在 2 到 50 个字符', trigger: 'blur' }
   ],
-  type: [
+  deviceTypeId: [  // 改为与后端实体一致的字段名
     { required: true, message: '请选择设备类型', trigger: 'change' }
   ]
 }
@@ -627,11 +647,46 @@ const basicRules = {
 const networkRules = {
   ipAddress: [
     { required: true, message: '请输入IP地址', trigger: 'blur' },
-    { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'IP地址格式不正确', trigger: 'blur' }
+    { 
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback()
+          return
+        }
+        // 支持IPv4和IPv6格式
+        const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/
+        const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/
+        
+        if (ipv4Pattern.test(value) || ipv6Pattern.test(value)) {
+          callback()
+        } else {
+          callback(new Error('IP地址格式不正确，支持IPv4和IPv6格式'))
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   port: [
     { required: true, message: '请输入端口号', trigger: 'blur' },
     { type: 'number', min: 1, max: 65535, message: '端口范围为1-65535', trigger: 'blur' }
+  ],
+  macAddress: [
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback()
+          return
+        }
+        // MAC地址格式验证 (XX:XX:XX:XX:XX:XX)
+        const macPattern = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/
+        if (macPattern.test(value)) {
+          callback()
+        } else {
+          callback(new Error('MAC地址格式不正确，格式：XX:XX:XX:XX:XX:XX'))
+        }
+      },
+      trigger: 'blur'
+    }
   ]
 }
 
@@ -656,24 +711,31 @@ const getDeviceStatusText = (status) => {
 }
 
 // 获取设备类型文本
-const getDeviceTypeText = (type) => {
-  const typeMap = {
-    'CAMERA': '摄像头',
-    'SENSOR': '传感器',
-    'ACCESS': '门禁',
-    'OTHER': '其他'
-  }
-  return typeMap[type] || type
+const getDeviceTypeText = (deviceTypeId) => {  // 改为与后端实体一致的字段名
+  if (!deviceTypeId) return '-'
+  const type = deviceTypes.value.find(t => t.id === deviceTypeId)
+  return type ? type.name : '未知类型'
 }
 
 // 获取分组文本
 const getGroupText = (groupId) => {
-  const groupMap = {
-    1: '安防监控',
-    2: '环境监测',
-    3: '门禁管理'
-  }
-  return groupMap[groupId] || '默认分组'
+  if (!groupId) return '-'
+  const group = deviceGroups.value.find(g => g.id === groupId)
+  return group ? group.name : '未知分组'
+}
+
+// 获取区域文本
+const getAreaText = (areaId) => {
+  if (!areaId) return '-'
+  const area = deviceAreas.value.find(a => a.id === areaId)
+  return area ? area.name : '未知区域'
+}
+
+// 获取标签文本
+const getTagText = (tagId) => {
+  if (!tagId) return ''
+  const tag = deviceTags.value.find(t => t.id === tagId)
+  return tag ? tag.name : '未知标签'
 }
 
 // 获取连接方式文本
@@ -707,10 +769,14 @@ const getTagType = (index) => {
 const selectTemplate = (template) => {
   selectedTemplate.value = template.id
   
+  // 根据typeCode找到对应的设备类型ID
+  const deviceType = deviceTypes.value.find(t => t.code === template.typeCode)
+  const deviceTypeId = deviceType ? deviceType.id : null  // 改为与后端实体一致的字段名
+  
   // 填充表单数据
   deviceForm.name = template.name
   deviceForm.code = `DEV${new Date().getTime().toString().substr(-8)}`
-  deviceForm.type = template.type
+  deviceForm.deviceTypeId = deviceTypeId  // 改为与后端实体一致的字段名
   deviceForm.model = template.model
   deviceForm.description = template.description
   deviceForm.ipAddress = template.ipAddress
@@ -784,26 +850,67 @@ const submitForm = async () => {
   }
 }
 
-// 如果是编辑模式，获取设备详情
-onMounted(async () => {
-  if (isEdit.value) {
-    const deviceId = route.params.id
-    await getDevice(deviceId)
+// 扁平化区域树形结构
+const flattenAreas = (areas, result = []) => {
+  areas.forEach(area => {
+    result.push(area)
+    if (area.children && area.children.length > 0) {
+      flattenAreas(area.children, result)
+    }
+  })
+  return result
+}
+
+// 加载基础数据
+const loadBasicData = async () => {
+  try {
+    // 并行加载设备分组、区域、标签、类型数据
+    const [groupsRes, areasRes, tagsRes, typesRes] = await Promise.all([
+      getAllDeviceGroups(),
+      getDeviceAreaTree(),
+      getAllDeviceTags(),
+      getDeviceTypes({})  // 使用getDeviceTypes并传递空参数
+    ])
+    
+    if (groupsRes.code === 200) {
+      deviceGroups.value = groupsRes.data || []
+    }
+    
+    if (areasRes.code === 200) {
+      // 扁平化树形结构用于选择器
+      const areaTree = areasRes.data || []
+      deviceAreas.value = flattenAreas(areaTree)
+    }
+    
+    if (tagsRes.code === 200) {
+      deviceTags.value = tagsRes.data || []
+    }
+    
+    if (typesRes.code === 200) {
+      deviceTypes.value = typesRes.data || []
+    }
+  } catch (error) {
+    console.error('加载基础数据失败', error)
+    ElMessage.warning('部分基础数据加载失败，可能影响部分功能')
   }
-})
+}
+
+
 
 // 重置表单数据
 const resetForm = () => {
   deviceForm.name = ''
   deviceForm.code = ''
-  deviceForm.type = ''
+  deviceForm.deviceTypeId = null  // 改为与后端实体一致的字段名
   deviceForm.location = ''
   deviceForm.description = ''
   deviceForm.ipAddress = ''
   deviceForm.port = 554
   deviceForm.username = ''
   deviceForm.password = ''
-  deviceForm.groupId = 1
+  deviceForm.groupId = null
+  deviceForm.areaId = null
+  deviceForm.tags = []
   deviceForm.status = 0
   
   // 重置步骤
@@ -832,9 +939,12 @@ const getDevice = async (id) => {
 }
 
 // 初始化
-const initForm = () => {
+const initForm = async () => {
+  // 先加载基础数据
+  await loadBasicData()
+  
   if (isEdit.value && route.params.id) {
-    getDevice(route.params.id)
+    await getDevice(route.params.id)
   } else {
     resetForm()
   }

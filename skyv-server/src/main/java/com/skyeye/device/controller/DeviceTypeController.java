@@ -161,4 +161,35 @@ public class DeviceTypeController {
         List<DeviceTypeDto> result = deviceTypeService.getChildTypes(parentId);
         return ApiResponse.success("查询成功", result);
     }
+
+    /**
+     * 调试设备类型统计问题
+     * 用于排查设备数量不匹配的问题
+     */
+    @GetMapping("/debug/{deviceTypeId}/count")
+    // @PreAuthorize("hasAuthority('device:view')")
+    public ApiResponse<Map<String, Object>> debugDeviceTypeCount(@PathVariable Long deviceTypeId) {
+        log.info("Debugging device type count for id: {}", deviceTypeId);
+        
+        Map<String, Object> result = deviceTypeService.debugDeviceTypeCount(deviceTypeId);
+        return ApiResponse.success("调试完成", result);
+    }
+
+    /**
+     * 初始化所有设备类型的统计数据
+     * 用于修复数据不一致问题
+     */
+    @PostMapping("/initialize-counts")
+    // @PreAuthorize("hasAuthority('device:admin')")
+    public ApiResponse<String> initializeDeviceTypeCounts() {
+        log.info("Initializing all device type counts");
+        
+        try {
+            deviceTypeService.initializeAllDeviceTypeCounts();
+            return ApiResponse.success("设备类型统计数据初始化完成");
+        } catch (Exception e) {
+            log.error("初始化设备类型统计数据失败", e);
+            return ApiResponse.error(500, "初始化失败: " + e.getMessage());
+        }
+    }
 } 

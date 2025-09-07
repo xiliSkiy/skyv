@@ -43,24 +43,40 @@ public interface DeviceRepository extends JpaRepository<Device, Long>, JpaSpecif
     Optional<Device> findBySerialNumber(String serialNumber);
 
     /**
-     * 根据设备类型查找设备
+     * 根据设备类型查找设备（排除软删除）
      */
-    List<Device> findByDeviceTypeId(Long deviceTypeId);
+    @Query("SELECT d FROM Device d WHERE d.deviceTypeId = :deviceTypeId AND d.deletedAt IS NULL")
+    List<Device> findByDeviceTypeId(@Param("deviceTypeId") Long deviceTypeId);
 
     /**
-     * 根据区域查找设备
+     * 根据设备类型ID统计设备数量（排除软删除）
      */
-    List<Device> findByAreaId(Long areaId);
+    @Query("SELECT COUNT(d) FROM Device d WHERE d.deviceTypeId = :deviceTypeId AND d.deletedAt IS NULL")
+    long countByDeviceTypeId(@Param("deviceTypeId") Long deviceTypeId);
 
     /**
-     * 根据分组查找设备
+     * 根据设备类型ID统计设备数量（包含软删除，用于调试）
      */
-    List<Device> findByGroupId(Long groupId);
+    @Query("SELECT COUNT(d) FROM Device d WHERE d.deviceTypeId = :deviceTypeId")
+    long countByDeviceTypeIdIncludingDeleted(@Param("deviceTypeId") Long deviceTypeId);
 
     /**
-     * 根据状态查找设备
+     * 根据区域查找设备（排除软删除）
      */
-    List<Device> findByStatus(Integer status);
+    @Query("SELECT d FROM Device d WHERE d.areaId = :areaId AND d.deletedAt IS NULL")
+    List<Device> findByAreaId(@Param("areaId") Long areaId);
+
+    /**
+     * 根据分组查找设备（排除软删除）
+     */
+    @Query("SELECT d FROM Device d WHERE d.groupId = :groupId AND d.deletedAt IS NULL")
+    List<Device> findByGroupId(@Param("groupId") Long groupId);
+
+    /**
+     * 根据状态查找设备（排除软删除）
+     */
+    @Query("SELECT d FROM Device d WHERE d.status = :status AND d.deletedAt IS NULL")
+    List<Device> findByStatus(@Param("status") Integer status);
 
     /**
      * 统计各状态设备数量

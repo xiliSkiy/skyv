@@ -2,6 +2,7 @@ package com.skyeye.device.service;
 
 import com.skyeye.device.dto.DeviceDto;
 import com.skyeye.device.dto.DeviceQueryRequest;
+import com.skyeye.device.entity.Device;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -30,6 +31,11 @@ public interface DeviceService {
      * 根据ID获取设备详情
      */
     DeviceDto getDeviceById(Long id);
+
+    /**
+     * 根据ID获取设备实体（内部使用）
+     */
+    Device getDeviceEntityById(Long id);
 
     /**
      * 创建设备

@@ -155,7 +155,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/skyeye_dev
+    url: jdbc:postgresql://localhost:5432/skyeye
   jpa:
     hibernate:
       ddl-auto: update

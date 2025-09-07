@@ -1,0 +1,1 @@
+cd skyv-server && mvn spring-boot:run
